@@ -24,7 +24,11 @@ React (Vite) ──/api──▶ Express ──execFile──▶ yt-dlp / galler
 
 Requirements: **Node 20.12+**, **Python 3.9+**, **ffmpeg**, **Git**.
 
-### Windows (PowerShell)
+### Windows: easiest way
+
+Install Node.js and Python (step 1 below), then **double-click `Start Stash.bat`** in the project folder. It installs everything else, builds the app, and opens it in your browser at http://127.0.0.1:8787. Keep its window open while you use Stash.
+
+### Windows (PowerShell, manual)
 
 Run each line on its own. Windows PowerShell 5.1 doesn't support `&&`.
 
