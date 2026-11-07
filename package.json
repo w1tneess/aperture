@@ -1,0 +1,12 @@
+{
+  "name": "stash",
+  "private": true,
+  "description": "Personal social media downloader (Instagram, X, Facebook, TikTok, YouTube, Threads, Reddit, Pinterest).",
+  "scripts": {
+    "setup": "npm install --prefix server && npm install --prefix web",
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run build --prefix web",
+    "start": "npm run build && npm start --prefix server",
+    "test": "npm test --prefix server"
+  }
+}

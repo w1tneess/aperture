@@ -1,0 +1,11 @@
+{
+  "name": "Stash",
+  "short_name": "Stash",
+  "description": "Personal downloader for Instagram, X, Facebook, TikTok and more.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F3F0E8",
+  "theme_color": "#1B1A17",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }],
+  "share_target": { "action": "/", "method": "GET", "params": { "title": "title", "text": "text", "url": "url" } }
+}
