@@ -31,6 +31,7 @@ export function LinkForm({ value, onChange, onSubmit, busy, autoFetch, inputRef 
   async function pasteFromClipboard() {
     setNote(null)
     try {
+      if (!navigator.clipboard) throw new Error('clipboard unavailable') // plain-http LAN address
       const text = await navigator.clipboard.readText()
       onChange(text)
       if (autoFetch && isSupported(text)) onSubmit(text)

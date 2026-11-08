@@ -37,6 +37,12 @@ export default function App() {
   return <Stash />
 }
 
+// crypto.randomUUID only exists in secure contexts (https/localhost); a phone on http://192.168.x.x has none.
+const newId = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null
   return Boolean(el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)))
@@ -80,7 +86,7 @@ function Stash() {
       setHistory((list) =>
         [
           {
-            id: crypto.randomUUID(),
+            id: newId(),
             url: job.url,
             platform: job.platform,
             title: job.title,
@@ -194,11 +200,23 @@ function Stash() {
     }
   }, [fetchLink, settings.autoFetch])
 
-  const copy = (text: string) =>
-    navigator.clipboard
-      .writeText(text)
-      .then(() => setToast('Link copied'))
-      .catch(() => setToast('Couldn’t copy. Your browser blocked clipboard access.'))
+  const copy = async (text: string) => {
+    try {
+      // navigator.clipboard is undefined on plain-http LAN addresses, hence the guard and the fallback.
+      if (navigator.clipboard) await navigator.clipboard.writeText(text)
+      else {
+        const area = Object.assign(document.createElement('textarea'), { value: text })
+        document.body.append(area)
+        area.select()
+        const ok = document.execCommand('copy')
+        area.remove()
+        if (!ok) throw new Error('copy failed')
+      }
+      setToast('Link copied')
+    } catch {
+      setToast('Couldn’t copy. Your browser blocked clipboard access.')
+    }
+  }
 
   const active = jobs.filter((j) => j.status !== 'done' && j.status !== 'error').length
   const darkNow =

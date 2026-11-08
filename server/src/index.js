@@ -16,7 +16,17 @@ import { resolveTools } from './tools.js';
 const app = express();
 if (config.trustProxy) app.set('trust proxy', config.trustProxy);
 app.disable('x-powered-by');
-app.use(helmet({ crossOriginEmbedderPolicy: false }));
+app.use(
+  helmet({
+    crossOriginEmbedderPolicy: false,
+    // Stash is usually served over plain http on a home network (e.g. your phone -> http://192.168.x.x:8787).
+    // Helmet's default upgrade-insecure-requests would rewrite every request to https and break the page,
+    // and HSTS would pin https on that address. Put it behind an https reverse proxy if you expose it publicly.
+    contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } },
+    strictTransportSecurity: false,
+    crossOriginOpenerPolicy: false, // ignored by browsers on http anyway; avoids console noise
+  }),
+);
 app.use(express.json({ limit: '16kb' }));
 app.use(cookieParser());
 
