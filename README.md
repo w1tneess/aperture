@@ -1,39 +1,59 @@
-# Stash
+# Aperture
 
-A personal, self-hosted downloader for social media posts: paste a link, pick a quality, get the file.
+**Save reels, videos, photos and carousels from Instagram, X, Facebook, TikTok and YouTube.** Paste a link, pick a quality, get the file. It's a web app that works in Brave, Chrome and on phones, and you can install it to your home screen and share posts straight to it.
 
-Supports **Instagram** (reels, videos, photos, carousels), **X / Twitter**, **Facebook**, **TikTok**, **YouTube**, **Threads**, **Reddit** and **Pinterest**. You can add more sites with `EXTRA_HOSTS`.
+Also supports Threads, Reddit and Pinterest.
 
-![Stash](docs/screenshot-result.png)
+<p>
+  <img src="docs/screenshot-result.png" alt="Aperture on desktop" width="62%">
+  <img src="docs/screenshot-mobile-dark.png" alt="Aperture on a phone, dark mode" width="28%">
+</p>
 
-## Why it needs a server
+## Features
 
-Browsers can't download from these platforms directly. Their pages block cross-site requests, media URLs are signed and short-lived, and many posts need a login. Every downloader site (snapgram, fdown, x-downloader) runs a backend. Stash runs that backend on **your** machine using two well-maintained open-source extractors:
+- **Paste anywhere**: <kbd>Ctrl</kbd>+<kbd>V</kbd> anywhere on the page; pasted chat messages work too ("look at this https://… 🔥").
+- **Quality picker**: Best / 1080p / 720p / 480p / audio only (MP3 or M4A), with size estimates.
+- **Carousels**: every photo and video in a post; download one or all.
+- **Batch**: paste a list of links and queue them all.
+- **Installable app**: in Brave, use *Install app*; in mobile Chrome, *Add to Home screen*. On Android it then appears in the share sheet.
+- **Live progress**, light/dark themes, keyboard friendly, screen-reader tested.
+- **Nothing kept**: files are deleted from the server minutes after download. There are no accounts and no database.
 
-- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)**: video, with real quality choices and audio extraction
-- **[gallery-dl](https://github.com/mikf/gallery-dl)**: photos and mixed photo/video carousels, which yt-dlp skips
+## How reliable is it?
 
-For photo-capable sites both run in parallel. gallery-dl's result is used when the post contains photos, otherwise yt-dlp's.
+Downloaders depend on the platforms, which actively change their sites to stop them. **No downloader works 100% of the time**, including the big commercial ones. Aperture is built to fail rarely and recover quickly:
 
-```
-React (Vite) ──/api──▶ Express ──execFile──▶ yt-dlp / gallery-dl ──▶ temp file ──▶ your browser
-                         │  allowlisted hosts only · no shell · progress over SSE · files deleted after 30 min
-```
+| | |
+|---|---|
+| Two extractors | [yt-dlp](https://github.com/yt-dlp/yt-dlp) for video and [gallery-dl](https://github.com/mikf/gallery-dl) for photos and mixed carousels, with automatic fallback between them |
+| Auto-update | `AUTO_UPDATE=1` upgrades both on start and daily. Most breakages are fixed upstream within days. |
+| Automatic retry | A failed download is retried once with a simpler format |
+| Network retries | Retries for flaky connections and known platform errors |
+| YouTube | Ships with the JavaScript runtime support YouTube now requires |
+| Clear errors | Every failure says what happened and what to try |
 
-## Quick start
+**Where it runs matters.** Platforms block cloud-server IPs far more than home connections:
 
-Requirements: **Node 20.12+**, **Python 3.9+**, **ffmpeg**, **Git**.
+- **Public instance (e.g. Render free):** most X, TikTok, Facebook and Reddit links work. YouTube and especially Instagram often hit "login required" or bot checks from cloud IPs.
+- **Your own PC:** the best success rate, plus your own login cookies for Instagram and private posts.
+
+## Deploy free on Render (public instance)
+
+1. Push this repo to GitHub.
+2. In [Render](https://render.com): **New → Blueprint**, pick the repo. `render.yaml` sets up a free Docker web service with `PUBLIC_MODE=1` and `AUTO_UPDATE=1`.
+3. Set `CONTACT_URL` (e.g. your repo's Issues page, for takedown requests) and `REPO_URL`.
+
+Render's free tier ([docs](https://render.com/docs/free)) sleeps after 15 minutes without traffic and takes about a minute to wake, so the first visit after a quiet spell is slow. The disk is temporary, which suits Aperture: files are only kept for minutes anyway.
+
+Public mode turns on stricter limits: 500 MB per file, 90-minute videos, 3 downloads at a time per visitor, rate-limited requests, and cookies are always ignored, so the server never acts as anyone's account. The `Dockerfile` also runs on any other Docker host.
+
+## Run it on your own PC
+
+Requirements: **Node 20.12+**, **Python 3.9+**, **ffmpeg**.
 
 ### Windows: easiest way
 
-Install Node.js and Python (step 1 below), then **double-click `Start Stash.bat`** in the project folder. It installs everything else, builds the app, and opens it in your browser at http://127.0.0.1:8787. Keep its window open while you use Stash.
-
-### Windows (PowerShell, manual)
-
-Run each line on its own. Windows PowerShell 5.1 doesn't support `&&`.
-
-1. Install the prerequisites (skip any you already have), then **close and reopen PowerShell** so the new commands are found:
-
+1. Install the prerequisites in PowerShell, one line at a time, then close and reopen PowerShell:
    ```powershell
    winget install OpenJS.NodeJS.LTS
    ```
@@ -43,40 +63,12 @@ Run each line on its own. Windows PowerShell 5.1 doesn't support `&&`.
    ```powershell
    winget install Gyan.FFmpeg
    ```
-   ```powershell
-   winget install Git.Git
-   ```
+2. Double-click **`Start Aperture.bat`**. It installs the rest, builds the app and opens http://127.0.0.1:8787. Keep its window open while you use Aperture.
 
-2. Install the extractors:
-
-   ```powershell
-   py -m pip install -U yt-dlp gallery-dl
-   ```
-
-3. Get the code and install dependencies:
-
-   ```powershell
-   git clone https://github.com/<you>/stash.git
-   ```
-   ```powershell
-   cd stash
-   ```
-   ```powershell
-   npm run setup
-   ```
-
-4. Run it:
-
-   ```powershell
-   npm run dev
-   ```
-
-   Open http://127.0.0.1:5173. The terminal shows a ✓ or ✗ for yt-dlp, gallery-dl and ffmpeg, so you can see at a glance if something is missing. If pip put `yt-dlp.exe` somewhere that isn't on PATH, Stash automatically falls back to `py -m yt_dlp`.
-
-### macOS / Linux
+### macOS / Linux / manual
 
 ```bash
-pip install -U yt-dlp gallery-dl
+python3 -m pip install -U "yt-dlp[default]" gallery-dl
 ```
 ```bash
 npm run setup
@@ -85,72 +77,31 @@ npm run setup
 npm run dev
 ```
 
-### Production mode
+Open http://127.0.0.1:5173. For a single-process production build, use `npm start` (http://127.0.0.1:8787).
 
-`npm start` builds the frontend and serves everything from one process at http://127.0.0.1:8787.
+### Instagram and private posts (own PC only)
 
-**Keep the extractors updated.** Platforms change their sites often. When a link that used to work starts failing, this almost always fixes it:
+1. In a browser where you're logged in, export cookies with a "cookies.txt" extension (e.g. *Get cookies.txt LOCALLY*).
+2. Copy `.env.example` to `.env` and set `COOKIES_FILE=` to that file's full path.
+3. Restart.
 
-```powershell
-py -m pip install -U yt-dlp gallery-dl
-```
+Treat that file like a password. Never put it on a public instance; public mode ignores it anyway.
 
-## Instagram (and private posts) need cookies
+### Use it from your phone
 
-Instagram blocks most anonymous requests. Facebook and X do so for some posts. Give Stash your browser's login cookies:
+Set `HOST=0.0.0.0` and `APP_PASSCODE=…` in `.env`, then open `http://<your-PC's-IP>:8787` on your phone (same Wi-Fi). To reach your PC from anywhere, put it behind a free tunnel such as [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) or [Tailscale](https://tailscale.com).
 
-1. Install a "cookies.txt" exporter extension in a browser where you're logged in (e.g. *Get cookies.txt LOCALLY*).
-2. Export cookies for instagram.com (and others if needed) to a file, e.g. `~/stash-cookies.txt`.
-3. Copy `.env.example` to `.env` in the project folder and set `COOKIES_FILE=` to the file's full path (on Windows, e.g. `COOKIES_FILE=C:/Users/you/stash-cookies.txt`; forward slashes are fine).
-4. Restart the server.
+## Configuration
 
-Treat that file like a password: it grants access to your accounts. It's git-ignored by default. A throwaway account is a sensible choice.
+All settings are environment variables. See [`.env.example`](.env.example) for the full list with explanations.
 
-## Using it
+## Security
 
-| | |
-|---|---|
-| **Paste anywhere** | Press <kbd>Ctrl</kbd>+<kbd>V</kbd> anywhere on the page; no need to click the box. <kbd>/</kbd> focuses it. |
-| **Shared text works** | Pasting "lol look at this https://… 🔥" finds the link. |
-| **Carousels** | Every item is shown; download one or all. |
-| **Quality** | Best / 1080p / 720p / 480p / audio-only (MP3 or M4A). Vertical videos are labelled by their short side, so a 720×1280 reel is "720p". |
-| **Quick mode** | Settings → skip the preview and download at your default quality straight away. |
-| **Batch** | Paste a list of links (or a whole chat message) and queue them all. |
-| **History** | Finished downloads are remembered in your browser (only there). |
-| **Phone** | Run with `HOST=0.0.0.0` and `APP_PASSCODE` set, open `http://<computer-ip>:8787` on your phone, and choose *Add to Home Screen*. On Android you can then *Share → Stash* from the Instagram/X/TikTok apps. |
-
-## Configuration (`.env`)
-
-See `.env.example`. The most relevant settings:
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `HOST` | `127.0.0.1` | `0.0.0.0` to reach it from other devices |
-| `APP_PASSCODE` | *(none)* | Required whenever it's reachable beyond your computer |
-| `SESSION_SECRET` | random per start | Set it to stay logged in across restarts |
-| `COOKIES_FILE` | *(none)* | Netscape cookies.txt for logged-in access |
-| `MAX_FILESIZE` | `2G` | Per-file cap |
-| `MAX_CONCURRENT` | `3` | Parallel downloads |
-| `JOB_TTL_MINUTES` | `30` | When temp files are deleted |
-| `EXTRA_HOSTS` | *(none)* | Extra sites, e.g. `vimeo.com,soundcloud.com` |
-
-## Docker
-
-```bash
-docker build -t stash .
-```
-
-```bash
-docker run -p 8787:8787 -e APP_PASSCODE=change-me -v ~/stash-cookies.txt:/cookies.txt:ro -e COOKIES_FILE=/cookies.txt stash
-```
-
-## Security notes
-
-- **Host allowlist.** The server only runs extractors on the listed platforms. Lookalike domains (`instagram.com.evil.example`), local addresses, `file:` and credentialed URLs are rejected.
-- **No shell.** Extractors run via `execFile` with an argument array. The client never sends raw arguments, only a quality id checked against a strict pattern.
-- **No open proxy.** Downloads and thumbnails reference server-side preview ids. The client can't make the server fetch an arbitrary URL.
-- **Hardening.** Helmet security headers and CSP, rate limits, a 16 KB body limit, a per-file size cap and a 15-minute process timeout. In production, errors don't expose internal details.
-- **Passcode gate.** Optional. Uses an HttpOnly, SameSite=Strict cookie, a constant-time comparison and a login rate limit.
+- **Host allowlist.** Extractors only run on listed platforms. Lookalike domains, local addresses, `file:` and credentialed URLs are rejected.
+- **No shell.** Extractors run via `execFile` with argument arrays, and the client can only pick a pre-validated quality id.
+- **No open proxy.** Downloads and thumbnails reference server-side ids, so the server never fetches a URL a visitor supplies directly.
+- **Abuse limits.** Helmet headers with CSP, rate limits, a per-visitor job cap, size and duration caps, process timeouts, and errors that don't expose internals.
+- **Optional passcode gate.** HttpOnly SameSite=Strict cookie, constant-time compare, login rate limit.
 
 ## Development
 
@@ -158,18 +109,19 @@ docker run -p 8787:8787 -e APP_PASSCODE=change-me -v ~/stash-cookies.txt:/cookie
 npm test
 ```
 
-Runs the server's URL-validation tests. The frontend type-checks on `npm run build`.
-
 ```
-server/src/index.js      routes, passcode gate, static hosting
+server/src/index.js      routes, limits, passcode gate, static hosting
 server/src/platforms.js  host allowlist + link extraction (unit-tested)
 server/src/extract.js    yt-dlp / gallery-dl probing and error mapping
-server/src/jobs.js       download queue, progress parsing, cleanup
-web/src/App.tsx          views, paste handling, share target
-web/src/components/      LinkForm, ResultView, QualityPicker, Downloads, History, Batch, Settings
-web/src/styles.css       design tokens (light/dark) and all styles
+server/src/jobs.js       download queue, retry, progress, cleanup
+server/src/tools.js      finds the extractors (PATH or Python module)
+server/src/updater.js    daily extractor auto-update
+web/src/                 React app (Vite + TypeScript)
+web/public/sw.js         service worker (installable PWA)
 ```
 
-## Use responsibly
+## Responsible use
 
-This is for saving things you're entitled to keep: your own posts, content with permission, or material for personal offline viewing where your local law allows it. Downloading can breach a platform's terms of service, and re-uploading other people's work can infringe copyright. You're responsible for how you use it.
+Aperture is for saving content you have the right to keep: your own posts, content you have permission to save, or personal offline viewing where your local law allows it. Downloading may break a platform's terms of service, and re-uploading others' work can infringe copyright. If you run a public instance, you're its operator: provide a takedown contact (`CONTACT_URL`) and respond to requests.
+
+Logo blade geometry adapted from [Feather Icons](https://feathericons.com) (MIT).

@@ -8,7 +8,7 @@ import { classifyError, gallerydlBaseArgs, ytdlpBaseArgs } from './extract.js';
 import { tools } from './tools.js';
 
 // Only ever create/delete inside this dedicated folder, never TMP_DIR itself.
-const JOBS_ROOT = path.join(config.tmpDir, 'stash-jobs');
+const JOBS_ROOT = path.join(config.tmpDir, 'aperture-jobs');
 
 // ------------------------------------------------------------------ probes
 
@@ -55,7 +55,18 @@ function downloadName(probe, item, ext) {
   return `${base}${suffix}.${ext}`;
 }
 
-export function createJob({ probe, index, optionId }) {
+export function activeJobsFor(ip) {
+  let n = 0;
+  for (const job of jobs.values()) if (job.ip === ip && ['queued', 'running', 'processing'].includes(job.status)) n++;
+  return n;
+}
+
+/** Called once the browser has fetched the file: it only needs to stay around briefly for "Save again". */
+export function markSaved(job) {
+  if (!job.savedAt) job.savedAt = Date.now();
+}
+
+export function createJob({ probe, index, optionId, ip }) {
   const item = probe.items[index];
   const job = {
     id: crypto.randomUUID(),
@@ -73,6 +84,9 @@ export function createJob({ probe, index, optionId }) {
     filePath: null,
     dir: path.join(JOBS_ROOT, crypto.randomUUID()),
     createdAt: Date.now(),
+    savedAt: null,
+    attempt: 1,
+    ip,
     _probe: probe,
     _item: item,
   };
@@ -86,12 +100,28 @@ function pump() {
   while (running < config.maxConcurrent && queue.length) {
     const job = queue.shift();
     running++;
-    execute(job)
+    runWithRetry(job)
       .catch((err) => update(job, { status: 'error', error: { code: err.code || 'FAILED', message: err.message } }))
       .finally(() => {
         running--;
         pump();
       });
+  }
+}
+
+// Failures worth one more try with a simpler format. Login/private/not-found won't change on retry.
+const RETRYABLE = new Set(['EXTRACT_FAILED', 'EMPTY', 'TIMEOUT', 'FAILED', 'NO_VIDEO', 'UNREACHABLE']);
+
+async function runWithRetry(job) {
+  try {
+    await execute(job);
+  } catch (err) {
+    if (job.attempt > 1 || !RETRYABLE.has(err.code)) throw err;
+    console.warn(`[job ${job.id}] attempt 1 failed (${err.code}); retrying with fallback format`);
+    job.attempt = 2;
+    await fs.rm(job.dir, { recursive: true, force: true }).catch(() => {});
+    update(job, { status: 'running', progress: null, part: 1 });
+    await execute(job);
   }
 }
 
@@ -113,8 +143,10 @@ function ytdlpArgs(job) {
   ];
   if (item.selector) args.push('--playlist-items', String(item.selector));
 
-  if (optionId === 'original') {
-    args.push('-f', 'b');
+  if (optionId === 'original' || job.attempt > 1) {
+    // Retry path: the single best pre-merged file. Avoids format/merge problems that break the first try.
+    if (optionId.startsWith('audio') && job.attempt > 1) args.push('-f', 'ba/b', '-x', '--audio-format', 'mp3');
+    else args.push('-f', 'b/bv*+ba');
   } else if (optionId === 'audio' || optionId === 'audio:m4a') {
     const fmt = optionId === 'audio:m4a' ? 'm4a' : 'mp3';
     args.push('-f', 'ba/b', '-x', '--audio-format', fmt, '--audio-quality', '0');
@@ -218,7 +250,8 @@ async function sweep() {
   const cutoff = Date.now() - config.jobTtlMs;
   for (const [id, probe] of probes) if (probe.createdAt < cutoff) probes.delete(id);
   for (const [id, job] of jobs) {
-    if (job.createdAt < cutoff && job.status !== 'running' && job.status !== 'processing') {
+    const savedExpired = job.savedAt && job.savedAt < Date.now() - config.afterSaveTtlMs;
+    if ((job.createdAt < cutoff || savedExpired) && job.status !== 'running' && job.status !== 'processing') {
       jobs.delete(id);
       await fs.rm(job.dir, { recursive: true, force: true }).catch(() => {});
     }
@@ -229,5 +262,5 @@ export async function initStorage() {
   // Start clean: anything left from a previous run is orphaned.
   await fs.rm(JOBS_ROOT, { recursive: true, force: true }).catch(() => {});
   await fs.mkdir(JOBS_ROOT, { recursive: true });
-  setInterval(sweep, 60_000).unref();
+  setInterval(sweep, 30_000).unref();
 }

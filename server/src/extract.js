@@ -24,7 +24,22 @@ export function run(tool, args, { timeout = 60_000 } = {}) {
 }
 
 export function ytdlpBaseArgs() {
-  const args = ['--ignore-config', '--no-warnings', '--socket-timeout', '20', '--no-playlist'];
+  const args = [
+    '--ignore-config',
+    '--no-warnings',
+    '--socket-timeout',
+    '20',
+    '--no-playlist',
+    '--retries',
+    '5',
+    '--fragment-retries',
+    '5',
+    '--extractor-retries',
+    '3',
+    // YouTube now needs a JavaScript runtime; Node is always present because it runs this server.
+    '--js-runtimes',
+    `node:${process.execPath}`,
+  ];
   if (config.cookiesFile) args.push('--cookies', config.cookiesFile);
   return args;
 }
@@ -46,7 +61,7 @@ export function classifyError(err, tool) {
     return new ExtractError('MISSING_TOOL', `${tool} isn’t installed on the server. See the README.`, detail);
   }
   if (/unable to connect|tunnel connection failed|name or service not known|getaddrinfo|connection refused|network is unreachable|no route to host/i.test(text)) {
-    return new ExtractError('UNREACHABLE', 'The server couldn’t reach that platform. Check its internet connection.', detail);
+    return new ExtractError('UNREACHABLE', 'The server couldn’t reach that platform right now.', detail);
   }
   if (err?.killed || /timed out|read timeout|timeout error/i.test(text)) {
     return new ExtractError('TIMEOUT', 'The platform took too long to respond. Try again.', detail);
@@ -164,7 +179,9 @@ export async function probeYtdlp(url) {
   const args = [...ytdlpBaseArgs(), '--dump-single-json', '--playlist-end', String(config.maxItemsPerPost), '--', url];
   try {
     const out = await run(tools.ytdlp, args, { timeout: 60_000 });
-    const result = normalizeYtdlp(JSON.parse(out));
+    const info = JSON.parse(out);
+    if (info.is_live) throw new ExtractError('LIVE', 'Live streams can’t be downloaded while they’re live.');
+    const result = normalizeYtdlp(info);
     if (!result.items.length) throw new ExtractError('NO_VIDEO', 'No downloadable media found in that post.');
     return result;
   } catch (err) {

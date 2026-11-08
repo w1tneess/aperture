@@ -9,9 +9,10 @@ import helmet from 'helmet';
 import { z } from 'zod';
 import { config } from './config.js';
 import { ExtractError, probe } from './extract.js';
-import { createJob, events, getJob, getProbe, initStorage, publicJob, saveProbe } from './jobs.js';
+import { activeJobsFor, createJob, events, getJob, getProbe, initStorage, markSaved, publicJob, saveProbe } from './jobs.js';
 import { PLATFORMS, resolveUrl } from './platforms.js';
-import { resolveTools } from './tools.js';
+import { resolveTools, tools } from './tools.js';
+import { startAutoUpdate } from './updater.js';
 
 const app = express();
 if (config.trustProxy) app.set('trust proxy', config.trustProxy);
@@ -19,7 +20,7 @@ app.disable('x-powered-by');
 app.use(
   helmet({
     crossOriginEmbedderPolicy: false,
-    // Stash is usually served over plain http on a home network (e.g. your phone -> http://192.168.x.x:8787).
+    // Aperture is usually served over plain http on a home network (e.g. your phone -> http://192.168.x.x:8787).
     // Helmet's default upgrade-insecure-requests would rewrite every request to https and break the page,
     // and HSTS would pin https on that address. Put it behind an https reverse proxy if you expose it publicly.
     contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } },
@@ -37,7 +38,7 @@ const fail = (res, status, code, message, detail) =>
 
 // ------------------------------------------------------------ passcode gate
 
-const SESSION_COOKIE = 'stash_session';
+const SESSION_COOKIE = 'aperture_session';
 const sessionToken = crypto.createHmac('sha256', config.sessionSecret).update(`v1:${config.passcode}`).digest('hex');
 
 function isAuthed(req) {
@@ -72,11 +73,24 @@ app.use('/api', (req, res, next) => (isAuthed(req) ? next() : fail(res, 401, 'AU
 
 // ------------------------------------------------------------------ routes
 
+app.get('/api/info', (_req, res) => {
+  res.json({
+    name: config.appName,
+    publicMode: config.publicMode,
+    maxDurationMinutes: Math.round(config.maxDurationSec / 60),
+    maxFilesize: config.maxFilesize,
+    fileLifetimeMinutes: Math.round(config.jobTtlMs / 60_000),
+    contactUrl: config.contactUrl || null,
+    repoUrl: config.repoUrl || null,
+    extractors: { ytdlp: tools.ytdlp.version, gallerydl: tools.gallerydl.version },
+  });
+});
+
 app.get('/api/platforms', (_req, res) => {
   res.json({ platforms: PLATFORMS.map(({ id, name, hosts }) => ({ id, name, hosts })), extraHosts: config.extraHosts });
 });
 
-app.post('/api/probe', limiter(30), async (req, res) => {
+app.post('/api/probe', limiter(config.probeLimitPerMin), async (req, res) => {
   const parsed = z.object({ url: z.string().min(1).max(2048) }).safeParse(req.body);
   if (!parsed.success) return fail(res, 422, 'VALIDATION', 'Paste a link first.');
 
@@ -122,7 +136,7 @@ app.get('/api/thumb/:probeId/:index', limiter(240), async (req, res) => {
   try {
     const upstream = await fetch(item.thumbnailUrl, {
       signal: AbortSignal.timeout(10_000),
-      headers: { 'user-agent': 'Mozilla/5.0 (Stash personal downloader)' },
+      headers: { 'user-agent': 'Mozilla/5.0 (Aperture personal downloader)' },
     });
     const type = upstream.headers.get('content-type') || '';
     const length = Number(upstream.headers.get('content-length') || 0);
@@ -152,8 +166,14 @@ app.post('/api/jobs', limiter(60), (req, res) => {
   if (!item) return fail(res, 404, 'NOT_FOUND', 'That item doesn’t exist.');
   const base = optionId.startsWith('audio') ? 'audio' : optionId;
   if (!item.options.some((o) => o.id === base)) return fail(res, 422, 'BAD_OPTION', 'That quality isn’t available.');
+  if (item.duration && item.duration > config.maxDurationSec) {
+    return fail(res, 422, 'TOO_LONG', `Videos longer than ${Math.round(config.maxDurationSec / 60)} minutes aren’t supported here.`);
+  }
+  if (activeJobsFor(req.ip) >= config.maxJobsPerIp) {
+    return fail(res, 429, 'BUSY', `You already have ${config.maxJobsPerIp} downloads running. Wait for one to finish.`);
+  }
 
-  res.status(201).json(publicJob(createJob({ probe: p, index, optionId })));
+  res.status(201).json(publicJob(createJob({ probe: p, index, optionId, ip: req.ip })));
 });
 
 app.get('/api/jobs/:id', (req, res) => {
@@ -191,7 +211,11 @@ app.get('/api/jobs/:id/file', (req, res) => {
   const job = getJob(req.params.id);
   if (!job || job.status !== 'done' || !job.filePath) return fail(res, 404, 'NOT_FOUND', 'File not ready or expired.');
   res.download(job.filePath, job.filename, { dotfiles: 'deny' }, (err) => {
-    if (err && !res.headersSent) fail(res, 410, 'EXPIRED', 'That file expired. Download it again.');
+    if (err) {
+      if (!res.headersSent) fail(res, 410, 'EXPIRED', 'That file expired. Download it again.');
+      return;
+    }
+    markSaved(job);
   });
 });
 
@@ -214,11 +238,13 @@ app.use((err, _req, res, _next) => {
 
 await initStorage();
 await resolveTools();
+startAutoUpdate();
 app.listen(config.port, config.host, () => {
-  console.log(`Stash server on http://${config.host}:${config.port}`);
+  console.log(`Aperture server on http://${config.host}:${config.port}`);
   const loopback = ['127.0.0.1', 'localhost', '::1'].includes(config.host);
-  if (!loopback && !config.passcode) {
+  if (config.publicMode) console.log('ℹ  PUBLIC_MODE on: stricter limits, cookies disabled.');
+  if (!loopback && !config.passcode && !config.publicMode) {
     console.warn('⚠  Listening beyond localhost without APP_PASSCODE. Anyone on the network can use this server.');
   }
-  if (!config.cookiesFile) console.log('ℹ  No COOKIES_FILE set. Many Instagram posts need one (see README).');
+  if (!config.cookiesFile && !config.publicMode) console.log('ℹ  No COOKIES_FILE set. Many Instagram posts need one (see README).');
 });

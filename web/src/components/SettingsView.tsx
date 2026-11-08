@@ -114,9 +114,9 @@ export function SettingsView({ settings, onChange }: Props) {
         <div className="setting setting-note">
           <p className="setting-label">On your phone</p>
           <p className="setting-help">
-            Open Stash in your phone’s browser and choose <em>Add to Home Screen</em>. On Android you can then share a
-            post from Instagram, X or TikTok straight to Stash. Files are removed from the server 30 minutes after
-            downloading.
+            In Chrome on Android, open the menu and choose <em>Add to Home screen</em> (in Brave: <em>Install app</em>).
+            Aperture then appears in your share sheet, so you can share a post from Instagram, X or TikTok straight to
+            it.
           </p>
         </div>
       </div>

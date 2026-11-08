@@ -21,26 +21,49 @@ const list = (value) =>
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 
+const flag = (value, fallback) => (value == null || value === '' ? fallback : /^(1|true|yes|on)$/i.test(value));
+
+// PUBLIC_MODE=1 is for a shared instance anyone can open (e.g. on Render). It tightens limits and never
+// uses anyone's personal cookies. Leave it off when you run Aperture just for yourself.
+const publicMode = flag(process.env.PUBLIC_MODE, false);
+
 export const config = {
+  appName: 'Aperture',
   port: int(process.env.PORT, 8787),
-  // Loopback by default: this is a personal tool. Set HOST=0.0.0.0 to use it from your phone on the same Wi-Fi.
   host: process.env.HOST || '127.0.0.1',
   isProd: process.env.NODE_ENV === 'production' || process.argv.includes('--prod'),
+  publicMode,
 
-  // Netscape-format cookies.txt exported from your browser. Needed for most Instagram and some Facebook/X posts.
-  cookiesFile: process.env.COOKIES_FILE || '',
+  // Netscape-format cookies.txt. Ignored in public mode: a shared server must not act as your account.
+  cookiesFile: publicMode ? '' : process.env.COOKIES_FILE || '',
 
-  tmpDir: process.env.TMP_DIR || path.join(os.tmpdir(), 'stash-downloads'),
-  maxConcurrent: int(process.env.MAX_CONCURRENT, 3),
-  maxFilesize: process.env.MAX_FILESIZE || '2G',
-  jobTtlMs: int(process.env.JOB_TTL_MINUTES, 30) * 60_000,
+  tmpDir: process.env.TMP_DIR || path.join(os.tmpdir(), 'aperture-downloads'),
+  maxConcurrent: int(process.env.MAX_CONCURRENT, publicMode ? 2 : 3),
+  maxJobsPerIp: int(process.env.MAX_JOBS_PER_IP, publicMode ? 3 : 20),
+  maxFilesize: process.env.MAX_FILESIZE || (publicMode ? '500M' : '2G'),
+  maxDurationSec: int(process.env.MAX_DURATION_MINUTES, publicMode ? 90 : 600) * 60,
   maxItemsPerPost: int(process.env.MAX_ITEMS_PER_POST, 20),
+  // Files live on the server only briefly: removed this long after creation, and soon after they're saved.
+  jobTtlMs: int(process.env.JOB_TTL_MINUTES, publicMode ? 15 : 30) * 60_000,
+  afterSaveTtlMs: int(process.env.AFTER_SAVE_MINUTES, publicMode ? 5 : 30) * 60_000,
+  probeLimitPerMin: int(process.env.PROBE_LIMIT_PER_MIN, publicMode ? 12 : 30),
 
-  // Optional shared passcode. Strongly recommended whenever HOST is not loopback.
+  // Keep extractors current: platforms break them often, and fixes ship within days.
+  autoUpdate: flag(process.env.AUTO_UPDATE, false),
+  python: process.env.PYTHON || (process.platform === 'win32' ? 'py' : 'python3'),
+
   passcode: process.env.APP_PASSCODE || '',
   sessionSecret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
 
-  // Extra hostnames to allow (any site yt-dlp supports, e.g. "vimeo.com,soundcloud.com").
+  // Shown in the footer for takedown requests on a public instance (e.g. your GitHub issues URL).
+  contactUrl: process.env.CONTACT_URL || '',
+  repoUrl: process.env.REPO_URL || '',
+
   extraHosts: list(process.env.EXTRA_HOSTS),
-  trustProxy: process.env.TRUST_PROXY || '',
+  // Express reads a string as an IP list, so "1" must become the number 1 (= trust one proxy hop, e.g. Render).
+  trustProxy: /^\d+$/.test(process.env.TRUST_PROXY || '')
+    ? Number(process.env.TRUST_PROXY)
+    : /^true$/i.test(process.env.TRUST_PROXY || '')
+      ? true
+      : process.env.TRUST_PROXY || '',
 };

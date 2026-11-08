@@ -4,13 +4,14 @@ import { Downloads } from './components/Downloads'
 import { Gate } from './components/Gate'
 import { History, type HistoryEntry } from './components/History'
 import { Icon } from './components/Icon'
+import { Logo } from './components/Logo'
 import { LinkForm } from './components/LinkForm'
 import { Notice } from './components/Notice'
 import { ResultSkeleton, ResultView } from './components/ResultView'
 import { SettingsView } from './components/SettingsView'
 import { useJobs, type TrackedJob } from './hooks/useJobs'
 import { useStoredState } from './hooks/useStoredState'
-import { api, ApiError, type MediaItem, type Probe, type Session } from './lib/api'
+import { api, ApiError, type AppInfo, type MediaItem, type Probe, type Session } from './lib/api'
 import { extractUrl } from './lib/platforms'
 import { DEFAULT_SETTINGS, pickOptionId, QUALITY_LABELS, toJobOption, type Settings } from './lib/settings'
 
@@ -34,7 +35,7 @@ export default function App() {
 
   if (!session) return null
   if (session.required && !session.authed) return <Gate onUnlocked={() => setSession({ required: true, authed: true })} />
-  return <Stash />
+  return <Aperture />
 }
 
 // crypto.randomUUID only exists in secure contexts (https/localhost); a phone on http://192.168.x.x has none.
@@ -48,9 +49,9 @@ function isTyping(target: EventTarget | null) {
   return Boolean(el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)))
 }
 
-function Stash() {
-  const [settings, setSettings] = useStoredState<Settings>('stash.settings', DEFAULT_SETTINGS)
-  const [history, setHistory] = useStoredState<HistoryEntry[]>('stash.history', [])
+function Aperture() {
+  const [settings, setSettings] = useStoredState<Settings>('aperture.settings', DEFAULT_SETTINGS)
+  const [history, setHistory] = useStoredState<HistoryEntry[]>('aperture.history', [])
   const [tab, setTab] = useState<Tab>('get')
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
@@ -58,8 +59,13 @@ function Stash() {
   const [error, setError] = useState<ApiError | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState('')
+  const [info, setInfo] = useState<AppInfo | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const fetchSeq = useRef(0)
+
+  useEffect(() => {
+    api.info().then(setInfo).catch(() => {})
+  }, [])
 
   // ---- theme
   useEffect(() => {
@@ -230,9 +236,9 @@ function Stash() {
       </a>
       <header className="topbar">
         <div className="shell topbar-inner">
-          <button className="wordmark" onClick={() => setTab('get')} aria-label="Stash home">
-            <span className="wordmark-mark" aria-hidden="true" />
-            stash
+          <button className="wordmark" onClick={() => setTab('get')} aria-label="Aperture home">
+            <Logo />
+            aperture
           </button>
           <nav className="tabs" aria-label="Sections">
             {TABS.map((t) => (
@@ -278,7 +284,7 @@ function Stash() {
             />
             <div className="result-slot">
               {loading && <ResultSkeleton />}
-              {error && <Notice error={error} onRetry={() => fetchLink(url)} />}
+              {error && <Notice error={error} publicMode={Boolean(info?.publicMode)} onRetry={() => fetchLink(url)} />}
               {probe && (
                 <ResultView
                   key={probe.probeId}
@@ -322,7 +328,24 @@ function Stash() {
       </main>
 
       <footer className="shell footer mono">
-        For personal use. Download only what you have the right to keep.
+        <p>
+          Download only what you have the right to keep. Files are deleted from the server within{' '}
+          {info?.fileLifetimeMinutes ?? 30} minutes. Nothing is stored after that.
+        </p>
+        {(info?.contactUrl || info?.repoUrl) && (
+          <p className="footer-links">
+            {info?.contactUrl && (
+              <a href={info.contactUrl} target="_blank" rel="noopener noreferrer">
+                Copyright / takedown requests
+              </a>
+            )}
+            {info?.repoUrl && (
+              <a href={info.repoUrl} target="_blank" rel="noopener noreferrer">
+                Source code
+              </a>
+            )}
+          </p>
+        )}
       </footer>
 
       <div className="toast-region" role="status" aria-live="polite">

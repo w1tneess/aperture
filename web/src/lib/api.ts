@@ -46,6 +46,17 @@ export type Job = {
 
 export type Session = { required: boolean; authed: boolean }
 
+export type AppInfo = {
+  name: string
+  publicMode: boolean
+  maxDurationMinutes: number
+  maxFilesize: string
+  fileLifetimeMinutes: number
+  contactUrl: string | null
+  repoUrl: string | null
+  extractors: { ytdlp: string | null; gallerydl: string | null }
+}
+
 export class ApiError extends Error {
   code: string
   status: number
@@ -65,7 +76,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       headers: { 'content-type': 'application/json', ...init?.headers },
     })
   } catch {
-    throw new ApiError('NETWORK', 'Can’t reach the Stash server. Is it running?', 0)
+    throw new ApiError('NETWORK', 'Can’t reach the Aperture server. Is it running?', 0)
   }
   const body = await res.json().catch(() => null)
   if (!res.ok) {
@@ -82,6 +93,7 @@ const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.strin
 
 export const api = {
   session: () => request<Session>('/api/session'),
+  info: () => request<AppInfo>('/api/info'),
   login: (passcode: string) => request<Session>('/api/session', post({ passcode })),
   probe: (url: string) => request<Probe>('/api/probe', post({ url })),
   createJob: (probeId: string, index: number, optionId: string) =>

@@ -1,6 +1,7 @@
 node_modules/
 web/dist/
 .env
+.sandbox-ca.crt
 .env.*
 !.env.example
 cookies*.txt

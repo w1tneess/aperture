@@ -1,0 +1,19 @@
+# One-click deploy on Render's free tier: https://render.com/docs/free
+# Render → New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: aperture
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/info
+    envVars:
+      - key: PUBLIC_MODE
+        value: "1"
+      - key: AUTO_UPDATE
+        value: "1"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: CONTACT_URL
+        sync: false # e.g. https://github.com/<you>/aperture/issues
+      - key: REPO_URL
+        sync: false # e.g. https://github.com/<you>/aperture

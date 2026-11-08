@@ -1,5 +1,5 @@
 {
-  "name": "stash",
+  "name": "aperture",
   "private": true,
   "description": "Personal social media downloader (Instagram, X, Facebook, TikTok, YouTube, Threads, Reddit, Pinterest).",
   "scripts": {

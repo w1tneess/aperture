@@ -1,9 +1,9 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title Stash
+title Aperture
 echo.
-echo  Stash - starting up
+echo  Aperture - starting up
 echo  -------------------
 
 where node >nul 2>nul
@@ -27,7 +27,7 @@ if not defined PY (
 %PY% -m yt_dlp --version >nul 2>nul
 if errorlevel 1 (
   echo  Installing yt-dlp and gallery-dl...
-  %PY% -m pip install -U yt-dlp gallery-dl
+  %PY% -m pip install -U "yt-dlp[default]" gallery-dl
   if errorlevel 1 goto failed
 )
 
@@ -55,7 +55,7 @@ if not exist "web\dist\index.html" (
 
 echo.
 echo  Opening http://127.0.0.1:8787 in your browser.
-echo  Keep this window open while you use Stash. Close it to stop.
+echo  Keep this window open while you use Aperture. Close it to stop.
 echo.
 start "" cmd /c "timeout /t 4 /nobreak >nul & start http://127.0.0.1:8787"
 node server\src\index.js --prod

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api, ApiError } from '../lib/api'
+import { Logo } from './Logo'
 
 export function Gate({ onUnlocked }: { onUnlocked: () => void }) {
   const [passcode, setPasscode] = useState('')
@@ -25,12 +26,12 @@ export function Gate({ onUnlocked }: { onUnlocked: () => void }) {
         }}
       >
         <p className="wordmark" aria-hidden="true">
-          <span className="wordmark-mark" />
-          stash
+          <Logo />
+          aperture
         </p>
         <h1 className="view-title">Enter passcode</h1>
         <label htmlFor="passcode" className="setting-help">
-          This Stash server is private.
+          This Aperture server is private.
         </label>
         <input
           id="passcode"
