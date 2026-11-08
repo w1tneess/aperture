@@ -105,7 +105,10 @@ function pump() {
     const job = queue.shift();
     running++;
     runWithRetry(job)
-      .catch((err) => update(job, { status: 'error', error: { code: err.code || 'FAILED', message: err.message } }))
+      .catch((err) => {
+        console.warn(`[job] ${job._probe.platform} ${job._item.source} ${job.optionId} failed: ${err.code || 'FAILED'} ${err.log || err.message}`);
+        update(job, { status: 'error', error: { code: err.code || 'FAILED', message: err.message } });
+      })
       .finally(() => {
         running--;
         pump();
@@ -192,7 +195,13 @@ async function executeDirect(job) {
   if (url.protocol !== 'https:' || !MEDIA_HOST.test(url.hostname)) {
     throw Object.assign(new Error('Refused an unexpected media host.'), { code: 'FAILED' });
   }
-  const res = await fetch(url, { signal: AbortSignal.timeout(10 * 60_000), headers: { 'user-agent': 'Mozilla/5.0' } });
+  let res;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(10 * 60_000), headers: { 'user-agent': 'Mozilla/5.0' } });
+  } catch (err) {
+    // Dropped connection to Instagram's CDN: mark as retryable instead of failing outright.
+    throw Object.assign(new Error('The connection to Instagram dropped. Try again.'), { code: 'FAILED', log: `cdn fetch: ${err.cause?.code || err.name}` });
+  }
   if (!res.ok || !res.body) {
     throw Object.assign(new Error('Instagram’s media link expired. Fetch the post again.'), { code: res.status === 403 ? 'EXPIRED' : 'FAILED' });
   }
@@ -222,7 +231,14 @@ async function executeDirect(job) {
     const fmt = job.optionId === 'audio:m4a' ? 'm4a' : 'mp3';
     const out = path.join(job.dir, `audio.${fmt}`);
     const codec = fmt === 'mp3' ? ['-codec:a', 'libmp3lame', '-q:a', '0'] : ['-c:a', 'aac', '-b:a', '192k'];
-    await runFfmpeg(['-y', '-loglevel', 'error', '-i', media, '-vn', ...codec, out]);
+    try {
+      await runFfmpeg(['-y', '-loglevel', 'error', '-i', media, '-vn', ...codec, out]);
+    } catch (err) {
+      if (/does not contain any stream|matches no streams|no audio/i.test(err.stderr || '')) {
+        throw Object.assign(new Error('This video has no sound, so there’s no audio to save.'), { code: 'NO_AUDIO' });
+      }
+      throw Object.assign(new Error('Couldn’t convert the audio.'), { code: 'FAILED', log: `ffmpeg: ${(err.stderr || '').trim().split('\n').at(-1)}` });
+    }
     await fs.rm(media, { force: true });
   }
 }
