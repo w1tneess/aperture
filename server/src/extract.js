@@ -78,12 +78,11 @@ export function classifyError(err, tool) {
         : 'That post is private. Add a cookies file from an account that can see it.');
   }
   if (/log ?in|sign ?in|cookies|authenticat|rate.?limit|429|checkpoint/i.test(text)) {
-    return new ExtractError(
+    return E(
       'LOGIN_REQUIRED',
       config.publicMode
         ? 'The platform is blocking downloads from this server right now.'
         : 'The platform asked for a login. Add a cookies file (see README) and try again.',
-      detail,
     );
   }
   if (/unsupported url/i.test(text)) {
