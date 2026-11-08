@@ -9,6 +9,7 @@ import { LinkForm } from './components/LinkForm'
 import { Notice } from './components/Notice'
 import { ResultSkeleton, ResultView } from './components/ResultView'
 import { SettingsView } from './components/SettingsView'
+import { useInstallPrompt } from './hooks/useInstallPrompt'
 import { useJobs, type TrackedJob } from './hooks/useJobs'
 import { useStoredState } from './hooks/useStoredState'
 import { api, ApiError, type AppInfo, type MediaItem, type Probe, type Session } from './lib/api'
@@ -65,6 +66,7 @@ function Aperture() {
   const [info, setInfo] = useState<AppInfo | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const fetchSeq = useRef(0)
+  const install = useInstallPrompt()
 
   useEffect(() => {
     api.info().then(setInfo).catch(() => {})
@@ -257,13 +259,20 @@ function Aperture() {
               </button>
             ))}
           </nav>
-          <button
-            className="btn-icon btn-quiet theme-toggle"
-            aria-label={darkNow ? 'Switch to light theme' : 'Switch to dark theme'}
-            onClick={() => setSettings((s) => ({ ...s, theme: darkNow ? 'light' : 'dark' }))}
-          >
-            <Icon name={darkNow ? 'sun' : 'moon'} />
-          </button>
+          <div className="topbar-actions">
+            {install && (
+              <button className="btn btn-ghost btn-sm" onClick={install}>
+                <Icon name="download" size={14} /> Install app
+              </button>
+            )}
+            <button
+              className="btn-icon btn-quiet theme-toggle"
+              aria-label={darkNow ? 'Switch to light theme' : 'Switch to dark theme'}
+              onClick={() => setSettings((s) => ({ ...s, theme: darkNow ? 'light' : 'dark' }))}
+            >
+              <Icon name={darkNow ? 'sun' : 'moon'} />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -301,11 +310,30 @@ function Aperture() {
                 />
               )}
               {!loading && !error && !probe && (
-                <p className="tip mono">
-                  <kbd>Ctrl</kbd>+<kbd>V</kbd> anywhere on the page · <kbd>/</kbd> to focus · default{' '}
-                  {QUALITY_LABELS[settings.quality]}
-                  {settings.quickMode ? ' · quick mode on' : ''}
-                </p>
+                <div className="get-empty">
+                  <ol className="steps" aria-label="How it works">
+                    <li>
+                      <span className="step-n mono" aria-hidden="true">01</span>
+                      <strong>Copy the link</strong>
+                      <span>On the post, tap Share, then Copy link.</span>
+                    </li>
+                    <li>
+                      <span className="step-n mono" aria-hidden="true">02</span>
+                      <strong>Paste it here</strong>
+                      <span>Press Ctrl+V anywhere, or share straight to Aperture on Android.</span>
+                    </li>
+                    <li>
+                      <span className="step-n mono" aria-hidden="true">03</span>
+                      <strong>Save the file</strong>
+                      <span>Pick a quality and it downloads to this device.</span>
+                    </li>
+                  </ol>
+                  <p className="tip mono">
+                    <kbd>Ctrl</kbd>+<kbd>V</kbd> anywhere · <kbd>/</kbd> to focus · default{' '}
+                    {QUALITY_LABELS[settings.quality]}
+                    {settings.quickMode ? ' · quick mode on' : ''}
+                  </p>
+                </div>
               )}
             </div>
           </section>
@@ -340,14 +368,19 @@ function Aperture() {
         </p>
         {(info?.contactUrl || info?.repoUrl) && (
           <p className="footer-links">
-            {info?.contactUrl && (
-              <a href={info.contactUrl} target="_blank" rel="noopener noreferrer">
-                Copyright / takedown requests
-              </a>
-            )}
             {info?.repoUrl && (
               <a href={info.repoUrl} target="_blank" rel="noopener noreferrer">
                 Source code
+              </a>
+            )}
+            {info?.repoUrl && (
+              <a href={`${info.repoUrl}/issues/new/choose`} target="_blank" rel="noopener noreferrer">
+                Report a problem
+              </a>
+            )}
+            {info?.contactUrl && (
+              <a href={info.contactUrl} target="_blank" rel="noopener noreferrer">
+                Copyright / takedown
               </a>
             )}
           </p>

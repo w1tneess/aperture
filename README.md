@@ -22,11 +22,23 @@ straight to your phone or computer. No ads, no accounts, no tracking.
 
 <br>
 
-<img src="docs/screenshots/result.png" alt="Aperture showing a video ready to download with quality options" width="760">
+<img src="docs/demo.gif" alt="Demo: pasting a link, previewing a vertical reel, downloading it with a live progress bar" width="760">
+
+<sub>Paste → preview → download. Real app, real progress bar.</sub>
 
 </div>
 
 ---
+
+<p align="center">
+  <a href="#why-aperture">Why</a> ·
+  <a href="#-install-it-as-an-app">Install</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#reliability-honestly">Reliability</a> ·
+  <a href="#-run-it-yourself">Self-host</a> ·
+  <a href="#-security">Security</a> ·
+  <a href="#-faq">FAQ</a>
+</p>
 
 ## Why Aperture
 
@@ -74,10 +86,22 @@ Most "downloader" sites are ad farms with fake buttons. Aperture is the opposite
 </table>
 
 <div align="center">
-<img src="docs/screenshots/carousel-dark.png" alt="A three-item carousel in dark mode" width="560">
+<img src="docs/screenshots/result.png" alt="A vertical reel ready to download, with quality options" width="560">
 &nbsp;
-<img src="docs/screenshots/mobile-dark.png" alt="Aperture on a phone" width="190">
+<img src="docs/screenshots/mobile-dark.png" alt="Aperture on a phone in dark mode" width="190">
+<br><br>
+<img src="docs/screenshots/carousel-dark.png" alt="A three-item carousel in dark mode" width="560">
 </div>
+
+## 📲 Install it as an app
+
+Aperture is a Progressive Web App: install it once and it opens like a native app, in its own window, with its own icon.
+
+| Where | How |
+|---|---|
+| **Brave / Chrome on desktop** | Click **Install app** in Aperture's top bar (or the install icon in the address bar) |
+| **Chrome / Brave on Android** | Menu **⋮ → Add to Home screen** (or **Install app**). Aperture then shows up in the **Share** sheet: share a post from Instagram or X straight to it |
+| **Safari on iPhone** | **Share → Add to Home Screen** |
 
 ## How it works
 
@@ -185,7 +209,7 @@ Everything is set with environment variables. The full, commented list is in [`.
 | `APP_PASSCODE` | Locks a private instance behind a passcode |
 | `HOST=0.0.0.0` | Makes it reachable from your phone on the same Wi-Fi |
 
-## 🛡️ Security
+## 🔒 Security
 
 - **Allowlisted hosts only.** Lookalike domains, local addresses, `file:` and credentialed URLs are rejected.
 - **No shell, ever.** Extractors run via argument arrays, and visitors can only pick a pre-validated quality id.
@@ -216,6 +240,43 @@ server/src/updater.js    daily extractor auto-update
 web/src/                 React app
 web/public/sw.js         service worker (installable PWA)
 ```
+
+</details>
+
+## ❓ FAQ
+
+<details>
+<summary><b>Is it free? Are there ads or limits?</b></summary>
+
+Free, no ads, no account. The public instance has fair-use limits (500 MB per file, 90-minute videos, 3 downloads at a time per person) so it stays fast for everyone.
+
+</details>
+
+<details>
+<summary><b>Do you keep my downloads or links?</b></summary>
+
+No. Files exist on the server only while you download them and are deleted within minutes. There's no database and no analytics. Your history lives only in your own browser, and you can switch it off in Settings.
+
+</details>
+
+<details>
+<summary><b>Why doesn't it support YouTube or TikTok?</b></summary>
+
+They block requests from cloud servers, so on the public instance they'd fail most of the time. Rather than show broken buttons, they're off. Self-host Aperture at home and set `ENABLED_PLATFORMS` to turn them on.
+
+</details>
+
+<details>
+<summary><b>A link that used to work now fails. What happened?</b></summary>
+
+The platform probably changed something. Aperture updates its extractors every day, and fixes usually land within a few days. Private posts, stories and deleted posts can't be downloaded at all.
+
+</details>
+
+<details>
+<summary><b>Can I download private posts?</b></summary>
+
+Not on the public instance: it never uses anyone's account. On your own self-hosted copy you can add your own cookies (`COOKIES_FILE`) to download posts your account can see.
 
 </details>
 
