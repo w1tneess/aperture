@@ -119,6 +119,7 @@ app.post('/api/probe', limiter(config.probeLimitPerMin), async (req, res) => {
     });
   } catch (err) {
     if (err instanceof ExtractError) {
+      console.warn(`[probe] ${target.platform} ${err.code}: ${err.log || err.message}`);
       const status = err.code === 'MISSING_TOOL' ? 500 : err.code === 'TIMEOUT' ? 504 : 422;
       return fail(res, status, err.code, err.message, err.detail);
     }

@@ -3,10 +3,11 @@ import { config } from './config.js';
 import { tools } from './tools.js';
 
 export class ExtractError extends Error {
-  constructor(code, message, detail) {
+  constructor(code, message, detail, log) {
     super(message);
     this.code = code;
-    this.detail = detail;
+    this.detail = detail; // sent to the client outside production only
+    this.log = log ?? detail; // always written to the server log, for diagnosing failures
   }
 }
 
@@ -55,40 +56,46 @@ export function classifyError(err, tool) {
   // Only stderr: err.message from execFile contains the full command line (e.g. "--socket-timeout"),
   // which would make every failure look like a timeout.
   const text = String(err?.stderr || '');
-  const detail = config.isProd ? undefined : lastLine(err?.stderr || err?.message);
+  const log = lastLine(err?.stderr || err?.message);
+  const detail = config.isProd ? undefined : log;
+  const E = (code, message) => new ExtractError(code, message, detail, log);
 
   if (err?.code === 'ENOENT') {
-    return new ExtractError('MISSING_TOOL', `${tool} isn’t installed on the server. See the README.`, detail);
+    return E('MISSING_TOOL', `${tool} isn’t installed on the server. See the README.`);
   }
   if (/unable to connect|tunnel connection failed|name or service not known|getaddrinfo|connection refused|network is unreachable|no route to host/i.test(text)) {
-    return new ExtractError('UNREACHABLE', 'The server couldn’t reach that platform right now.', detail);
+    return E('UNREACHABLE', 'The server couldn’t reach that platform right now.');
   }
   if (err?.killed || /timed out|read timeout|timeout error/i.test(text)) {
-    return new ExtractError('TIMEOUT', 'The platform took too long to respond. Try again.', detail);
+    return E('TIMEOUT', 'The platform took too long to respond. Try again.');
   }
   if (/no video|there's no video|no media found|no formats/i.test(text)) {
-    return new ExtractError('NO_VIDEO', 'No downloadable media found in that post.', detail);
+    return E('NO_VIDEO', 'No downloadable media found in that post.');
   }
   if (/private|followers only|this account is private/i.test(text)) {
-    return new ExtractError('PRIVATE', 'That post is private. Add a cookies file from an account that can see it.', detail);
+    return E('PRIVATE', config.publicMode
+        ? 'That post is private. Only public posts can be downloaded here.'
+        : 'That post is private. Add a cookies file from an account that can see it.');
   }
   if (/log ?in|sign ?in|cookies|authenticat|rate.?limit|429|checkpoint/i.test(text)) {
     return new ExtractError(
       'LOGIN_REQUIRED',
-      'The platform asked for a login. Add a cookies file (see README) and try again.',
+      config.publicMode
+        ? 'The platform is blocking downloads from this server right now.'
+        : 'The platform asked for a login. Add a cookies file (see README) and try again.',
       detail,
     );
   }
   if (/unsupported url/i.test(text)) {
-    return new ExtractError('UNSUPPORTED', 'That link type isn’t supported (try the post’s direct link).', detail);
+    return E('UNSUPPORTED', 'That link type isn’t supported (try the post’s direct link).');
   }
   if (/404|not found|unavailable|removed|deleted|does not exist/i.test(text)) {
-    return new ExtractError('NOT_FOUND', 'That post is unavailable or was deleted.', detail);
+    return E('NOT_FOUND', 'That post is unavailable or was deleted.');
   }
   if (/larger than max-filesize|File is larger/i.test(text)) {
-    return new ExtractError('TOO_LARGE', `That file is larger than the ${config.maxFilesize} limit.`, detail);
+    return E('TOO_LARGE', `That file is larger than the ${config.maxFilesize} limit.`);
   }
-  return new ExtractError('EXTRACT_FAILED', 'Couldn’t read that post. The link may be wrong or the platform changed.', detail);
+  return E('EXTRACT_FAILED', 'Couldn’t read that post. The link may be wrong or the platform changed.');
 }
 
 function lastLine(text) {
@@ -256,7 +263,14 @@ export async function probe({ url, images }) {
     }
   }
 
-  const [yt, gd] = await Promise.allSettled([probeYtdlp(url), probeGallerydl(url)]);
+  // Run both. Once yt-dlp has answered, give gallery-dl only a short grace period instead of its full
+  // timeout: a slow gallery-dl almost always means it's being blocked, and waiting made probes take ~45 s.
+  const settle = (p) => p.then((value) => ({ status: 'fulfilled', value }), (reason) => ({ status: 'rejected', reason }));
+  const ytP = settle(probeYtdlp(url));
+  const gdP = settle(probeGallerydl(url));
+  const yt = await ytP;
+  const GRACE = { status: 'rejected', reason: new ExtractError('EXTRACT_FAILED', 'gallery-dl too slow', undefined, 'gallery-dl exceeded grace period') };
+  const gd = await Promise.race([gdP, new Promise((r) => setTimeout(() => r(GRACE), yt.status === 'fulfilled' ? 8_000 : 45_000))]);
   const gdHasImages = gd.status === 'fulfilled' && gd.value.items.some((i) => i.kind === 'image');
   if (gdHasImages) return gd.value;
   if (yt.status === 'fulfilled') return yt.value;
