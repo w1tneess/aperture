@@ -47,3 +47,17 @@ test('disabled platforms are rejected with a clear reason', () => {
   assert.ok('error' in yt && /YouTube/.test(yt.error));
   assert.ok('error' in resolveUrl('https://www.tiktok.com/@a/video/1', [], enabled));
 });
+
+test('Instagram video flagged has_audio:false is known silent; hidden audio is not', async () => {
+  const { normalizeYtdlp } = await import('../src/extract.js');
+  const silent = normalizeYtdlp({ formats: [
+    { format_id: '0', ext: 'mp4', vcodec: null, acodec: 'none', url: 'u' },
+    { format_id: 'dash-1v', ext: 'mp4', vcodec: 'avc1', acodec: 'none', height: 1280, width: 720 },
+  ] });
+  assert.equal(silent.items[0].knownSilent, true);
+  const hidden = normalizeYtdlp({ formats: [
+    { format_id: '0', ext: 'mp4', vcodec: null, acodec: null, url: 'u' },
+    { format_id: 'dash-1v', ext: 'mp4', vcodec: 'avc1', acodec: 'none', height: 1280, width: 720 },
+  ] });
+  assert.equal(hidden.items[0].knownSilent, false);
+});
