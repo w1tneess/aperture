@@ -3,6 +3,7 @@ import { config } from './config.js';
 import { tools } from './tools.js';
 import { cookiesFor } from './cookies.js';
 import { apifyEnabled, probeApify } from './apify.js';
+import { WorkerUnavailable, workerProbe } from './worker.js';
 
 export class ExtractError extends Error {
   constructor(code, message, detail, log) {
@@ -24,6 +25,16 @@ export function run(tool, args, { timeout = 60_000 } = {}) {
       resolve(String(stdout));
     });
   });
+}
+
+/** Probe through the persistent worker when it's running (no Python startup per probe), else the CLI. */
+async function probeRun(toolKey, url, cliArgs, workerArgs, timeout) {
+  try {
+    return await workerProbe(toolKey, url, workerArgs, timeout);
+  } catch (err) {
+    if (!(err instanceof WorkerUnavailable)) throw err;
+    return run(tools[toolKey], cliArgs, { timeout });
+  }
 }
 
 export function ytdlpBaseArgs(platform) {
@@ -192,9 +203,9 @@ export function normalizeYtdlp(info) {
 }
 
 export async function probeYtdlp(url, platform) {
-  const args = [...ytdlpBaseArgs(platform), '--dump-single-json', '--playlist-end', String(config.maxItemsPerPost), '--', url];
+  const opts = [...ytdlpBaseArgs(platform), '--playlist-end', String(config.maxItemsPerPost)];
   try {
-    const out = await run(tools.ytdlp, args, { timeout: 60_000 });
+    const out = await probeRun('ytdlp', url, [...opts, '--dump-single-json', '--', url], opts, 60_000);
     const info = JSON.parse(out);
     if (info.is_live) throw new ExtractError('LIVE', 'Live streams can’t be downloaded while they’re live.');
     const result = normalizeYtdlp(info);
@@ -241,7 +252,7 @@ export async function probeGallerydl(url, platform) {
   const args = [...gallerydlBaseArgs(platform), '--resolve-json', '--range', `1-${config.maxItemsPerPost}`, '--', url];
   let out;
   try {
-    out = await run(tools.gallerydl, args, { timeout: 25_000 });
+    out = await probeRun('gallerydl', url, args, null, 25_000);
   } catch (err) {
     throw classifyError(err, 'gallery-dl');
   }
@@ -262,7 +273,35 @@ export async function probeGallerydl(url, platform) {
  * - gallery-dl handles photos and mixed carousels, which yt-dlp skips.
  * For photo-capable platforms both run in parallel; gallery-dl wins only if it found photos.
  */
+// Recent successful probes, keyed by URL. Pasting the same link again (retry, batch, an expired preview)
+// returns instantly, and on Instagram it doesn't spend another Apify lookup. Media URLs inside stay valid
+// for hours, so a few minutes is safe. Identical probes already in flight share one extraction.
+const CACHE_TTL_MS = 10 * 60_000;
+const CACHE_MAX = 200;
+const cache = new Map();
+const inflight = new Map();
+
 export async function probe(target) {
+  const key = `${target.platform}|${target.url}`;
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.result;
+  if (inflight.has(key)) return inflight.get(key);
+
+  const p = probeUncached(target).then((result) => {
+    cache.delete(key);
+    cache.set(key, { result, at: Date.now() });
+    while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value); // oldest first
+    return result;
+  });
+  inflight.set(key, p);
+  try {
+    return await p;
+  } finally {
+    inflight.delete(key);
+  }
+}
+
+async function probeUncached(target) {
   if (target.platform !== 'instagram' || !apifyEnabled()) return probeFree(target);
   // Instagram: free extractors first; if they can't read the post, ask the Apify backup.
   let free;

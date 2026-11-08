@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { config } from './config.js';
 import { resolveTools } from './tools.js';
+import { restartWorker } from './worker.js';
 
 const DAY = 24 * 60 * 60_000;
 
@@ -14,6 +15,7 @@ export function updateExtractors() {
         return resolve(false);
       }
       await resolveTools();
+      await restartWorker(); // load the updated extractors
       resolve(true);
     });
   });

@@ -233,6 +233,8 @@ Found a vulnerability? Please report it privately. See [SECURITY.md](SECURITY.md
 server/src/index.js      routes, limits, passcode gate, static hosting
 server/src/platforms.js  host allowlist + link extraction
 server/src/extract.js    yt-dlp / gallery-dl probing, error mapping
+server/src/worker.js     persistent Python probe worker (extractors stay loaded; CLI fallback)
+server/src/probe_worker.py  the worker itself
 server/src/apify.js      Instagram backup (Apify)
 server/src/jobs.js       download queue, retries, progress, cleanup
 server/src/tools.js      finds the extractors (PATH or Python module)

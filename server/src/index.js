@@ -12,9 +12,10 @@ import { ExtractError, probe } from './extract.js';
 import { activeJobsFor, createJob, events, getJob, getProbe, initStorage, markSaved, publicJob, saveProbe } from './jobs.js';
 import { PLATFORMS, resolveUrl } from './platforms.js';
 import { resolveTools, tools } from './tools.js';
-import { hasInstagramLogin, initCookies } from './cookies.js';
+import { cookiesFor, hasInstagramLogin, initCookies } from './cookies.js';
 import { apifyEnabled } from './apify.js';
 import { startAutoUpdate } from './updater.js';
+import { startWorker } from './worker.js';
 
 const app = express();
 if (config.trustProxy) app.set('trust proxy', config.trustProxy);
@@ -258,6 +259,7 @@ function startKeepAwake() {
 await initStorage();
 await resolveTools();
 await initCookies();
+await startWorker({ cookies: config.cookiesFile, instagramCookies: cookiesFor('instagram') });
 startAutoUpdate();
 startKeepAwake();
 app.listen(config.port, config.host, () => {
