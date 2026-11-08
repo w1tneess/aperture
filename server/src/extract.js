@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { config } from './config.js';
 import { tools } from './tools.js';
 import { cookiesFor, hasInstagramLogin } from './cookies.js';
-import { apifyEnabled, probeApify } from './apify.js';
+import { MEDIA_HOST, apifyEnabled, probeApify } from './apify.js';
 import { WorkerUnavailable, workerProbe } from './worker.js';
 
 export class ExtractError extends Error {
@@ -181,10 +181,44 @@ function reportsNoAudio(entry) {
   return !anyAudio && plain.length > 0 && plain.every((f) => f.acodec === 'none');
 }
 
-export function normalizeYtdlp(info) {
+/**
+ * Full-size photo of an Instagram entry that has no video. With --ignore-no-formats-error, yt-dlp keeps
+ * photo posts and carousel photos (which it would otherwise reject as "no video"); the image sizes
+ * Instagram offers are listed as thumbnails, smallest first. Only Instagram/Meta CDN URLs are accepted,
+ * because the download step fetches this URL directly.
+ */
+function instagramPhoto(entry) {
+  if ((Array.isArray(entry.formats) && entry.formats.length) || entry.url) return null;
+  const thumbs = Array.isArray(entry.thumbnails) ? entry.thumbnails.filter((t) => t?.url) : [];
+  const candidate = thumbs.at(-1)?.url || entry.thumbnail;
+  try {
+    const u = new URL(candidate);
+    return u.protocol === 'https:' && MEDIA_HOST.test(u.hostname) ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function normalizeYtdlp(info, { photos = false } = {}) {
   const isList = info._type === 'playlist';
   const entries = (isList ? info.entries || [] : [info]).filter(Boolean).slice(0, config.maxItemsPerPost);
   const items = entries.map((e, i) => {
+    const photo = photos ? instagramPhoto(e) : null;
+    if (photo) {
+      return {
+        source: 'direct',
+        selector: isList ? e.playlist_index || i + 1 : null,
+        mediaUrl: photo,
+        kind: 'image',
+        thumbnailUrl: photo,
+        duration: null,
+        width: e.width ?? null,
+        height: e.height ?? null,
+        options: [{ id: 'original', label: 'Original', ext: 'jpg', res: null, sizeBytes: null }],
+      };
+    }
+    // Kept only because of --ignore-no-formats-error, but no usable photo either: nothing to offer.
+    if (photos && !(Array.isArray(e.formats) && e.formats.length) && !e.url) return null;
     const isImage = IMAGE_EXT.has(String(e.ext || '').toLowerCase());
     return {
       source: 'ytdlp',
@@ -199,7 +233,7 @@ export function normalizeYtdlp(info) {
         : buildVideoOptions(e),
       knownSilent: !isImage && reportsNoAudio(e),
     };
-  });
+  }).filter(Boolean);
   const first = entries[0] || {};
   let title = info.title || info.description?.slice(0, 120) || first.title || 'Untitled';
   // yt-dlp's generic page extractor numbers embedded media ("Page title (1)"); drop that counter.
@@ -216,12 +250,15 @@ export function normalizeYtdlp(info) {
 }
 
 export async function probeYtdlp(url, platform) {
+  // Instagram's logged-out response includes photos too; keep them instead of failing with "no video".
+  const photos = platform === 'instagram';
   const opts = [...ytdlpBaseArgs(platform), '--playlist-end', String(config.maxItemsPerPost)];
+  if (photos) opts.push('--ignore-no-formats-error');
   try {
     const out = await probeRun('ytdlp', url, [...opts, '--dump-single-json', '--', url], opts, 60_000);
     const info = JSON.parse(out);
     if (info.is_live) throw new ExtractError('LIVE', 'Live streams can’t be downloaded while they’re live.');
-    const result = normalizeYtdlp(info);
+    const result = normalizeYtdlp(info, { photos });
     if (!result.items.length) throw new ExtractError('NO_VIDEO', 'No downloadable media found in that post.');
     return result;
   } catch (err) {

@@ -61,3 +61,21 @@ test('Instagram video flagged has_audio:false is known silent; hidden audio is n
   ] });
   assert.equal(hidden.items[0].knownSilent, false);
 });
+
+test('Instagram photos without video become direct image items; foreign hosts are refused', async () => {
+  const { normalizeYtdlp } = await import('../src/extract.js');
+  const cdn = (n) => `https://scontent-ord5-1.cdninstagram.com/v/t51/${n}.jpg?x=1`;
+  const r = normalizeYtdlp({
+    _type: 'playlist',
+    entries: [
+      { formats: [], thumbnails: [{ url: cdn('small') }, { url: cdn('big') }] },
+      { formats: [{ format_id: 'dash-1v', vcodec: 'avc1', acodec: 'none', height: 1280, width: 720 }] },
+      { formats: [], thumbnails: [{ url: 'https://evil.example/x.jpg' }] },
+    ],
+  }, { photos: true });
+  assert.equal(r.items.length, 2);
+  assert.equal(r.items[0].kind, 'image');
+  assert.equal(r.items[0].source, 'direct');
+  assert.equal(r.items[0].mediaUrl, cdn('big'));
+  assert.equal(r.items[1].kind, 'video');
+});
