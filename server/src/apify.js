@@ -28,17 +28,23 @@ function budget() {
   usedToday++;
 }
 
-async function api(path, init = {}) {
+async function api(path, init = {}, timeoutMs = 30_000) {
   let res;
   try {
     res = await fetch(`${API}${path}`, {
       ...init,
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(timeoutMs),
       headers: { authorization: `Bearer ${config.apifyToken}`, 'content-type': 'application/json', ...init.headers },
     });
   } catch (err) {
-    // Network failure or timeout reaching Apify: a clear message instead of a generic server error.
+    if (err.name === 'TimeoutError') {
+      throw new ExtractError('TIMEOUT', 'Instagram took too long to respond. Try again.', undefined, 'apify request timed out');
+    }
+    // Network failure reaching Apify: a clear message instead of a generic server error.
     throw new ExtractError('UNREACHABLE', 'The Instagram backup service is unreachable right now. Try again.', undefined, `apify fetch: ${err.cause?.code || err.name}`);
+  }
+  if (res.status === 408) {
+    throw new ExtractError('TIMEOUT', 'Instagram took too long to respond. Try again.', undefined, 'apify run exceeded sync limit');
   }
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -99,27 +105,21 @@ export function normalizeApify(post) {
   };
 }
 
-/** Look up one Instagram post through Apify: start a run, wait for it, read its dataset. */
+/**
+ * Look up one Instagram post through Apify in a single request: run-sync-get-dataset-items starts the run,
+ * waits for it and returns its dataset, so there's no status polling adding up to 2.5 s per lookup.
+ * https://docs.apify.com/api/v2/act-run-sync-get-dataset-items-post
+ */
 export async function probeApify(url) {
   if (!apifyEnabled()) throw new ExtractError('EXTRACT_FAILED', 'Couldn’t read that post.', undefined, 'apify not configured');
   budget();
   const input = { directUrls: [url], resultsType: 'details', resultsLimit: 1, addParentData: false };
-  const { data: run } = await api(`/acts/${ACTOR}/runs?memory=1024&timeout=150`, { method: 'POST', body: JSON.stringify(input) });
-
-  const deadline = Date.now() + 160_000;
-  let status = run.status;
-  while (!['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'].includes(status)) {
-    if (Date.now() > deadline) {
-      await api(`/actor-runs/${run.id}/abort`, { method: 'POST' }).catch(() => {});
-      throw new ExtractError('TIMEOUT', 'Instagram took too long to respond. Try again.', undefined, 'apify run timed out');
-    }
-    await new Promise((r) => setTimeout(r, 2500));
-    status = (await api(`/actor-runs/${run.id}`)).data.status;
-  }
-  if (status !== 'SUCCEEDED') throw new ExtractError('EXTRACT_FAILED', 'Couldn’t read that post.', undefined, `apify run ${status}`);
-
-  const items = await api(`/datasets/${run.defaultDatasetId}/items?clean=0&limit=1`);
-  if (!items.length) throw new ExtractError('NOT_FOUND', 'That post doesn’t exist or was deleted.', undefined, 'apify empty dataset');
+  const items = await api(
+    `/acts/${ACTOR}/run-sync-get-dataset-items?memory=1024&timeout=150&clean=0&limit=1`,
+    { method: 'POST', body: JSON.stringify(input) },
+    170_000,
+  );
+  if (!Array.isArray(items) || !items.length) throw new ExtractError('NOT_FOUND', 'That post doesn’t exist or was deleted.', undefined, 'apify empty dataset');
   return normalizeApify(items[0]);
 }
 
