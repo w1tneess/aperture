@@ -49,6 +49,7 @@ Most "downloader" sites are ad farms with fake buttons. Aperture is the opposite
 <td width="50%" valign="top">
 
 ### ⚡ Fast by design
+- **Answers in seconds:** most links show their preview in 2–4 s, even on the free public server ([measured](#why-its-fast)).
 - **Paste anywhere:** <kbd>Ctrl</kbd>+<kbd>V</kbd> on the page, no clicking the box first. <kbd>/</kbd> focuses it.
 - **Messy text works:** paste a whole chat message ("lol look at this https://… 🔥") and it finds the link.
 - **Quick mode:** skip the preview and download instantly at your default quality.
@@ -109,18 +110,34 @@ Aperture is a Progressive Web App: install it once and it opens like a native ap
 flowchart LR
     A["🔗 You paste a link"] --> B{"Allowed<br>platform?"}
     B -- no --> X["Friendly error"]
-    B -- yes --> C["yt-dlp + gallery-dl<br>(free, run in parallel)"]
+    B -- yes --> C["yt-dlp, kept loaded<br>(+ gallery-dl where it helps)"]
     C -- "works" --> D["Preview + quality options"]
-    C -- "Instagram blocked<br>or silent video" --> E["Apify backup<br>(Instagram only)"]
+    C -- "Instagram can't be read<br>or its audio is hidden" --> E["Apify backup<br>(Instagram only)"]
     E --> D
     D --> F["Server downloads,<br>merges audio with ffmpeg"]
     F --> G["📥 File saved to your device"]
     G --> H["🧹 Server copy deleted<br>within minutes"]
 ```
 
-- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** handles video, quality selection and audio extraction.
-- **[gallery-dl](https://github.com/mikf/gallery-dl)** handles photos and mixed carousels.
-- **[Apify](https://apify.com/apify/instagram-scraper)** is an optional backup for Instagram posts the free extractors can't read. No personal Instagram account is ever used.
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** handles video, quality selection and audio extraction. On Instagram it also reads photo posts and carousels without logging in, from the same public data Instagram shows any visitor.
+- **[gallery-dl](https://github.com/mikf/gallery-dl)** handles photos and mixed carousels on X, Facebook and Pinterest. It's skipped for Instagram unless login cookies are configured, because Instagram blocks it when logged out.
+- **[Apify](https://apify.com/apify/instagram-scraper)** is an optional backup for Instagram posts the free path can't read, or videos whose sound Instagram hides from logged-out visitors. It's rarely needed now. No personal Instagram account is ever used.
+
+### Why it's fast
+
+- **Extractors stay loaded.** One long-running Python worker keeps yt-dlp and gallery-dl in memory, so a lookup doesn't pay ~1 CPU-second of startup first. On a small server (Render's free tier has a fraction of a CPU) that alone was about 8 seconds per link. If the worker can't start, Aperture falls back to running the tools directly.
+- **No waiting on tools that can't succeed.** Reel links skip photo extraction, and genuinely silent videos are kept instead of being sent to the backup.
+- **Repeat links are instant.** Results are reused for 10 minutes, and identical lookups running at the same time share one.
+- **One request to the backup** instead of starting a job and polling it.
+
+Measured on the public instance (free Render server):
+
+| Link | Before | Now |
+|---|---|---|
+| X post | 9.8 s | 1.7–3.9 s |
+| Instagram video | ~11 s | 2.7 s |
+| Instagram photo or carousel | 15–60 s (via backup) | 3.3 s |
+| Instagram silent video | 48–70 s (via backup) | ~2 s (measured locally) |
 
 ## Reliability, honestly
 
@@ -129,7 +146,7 @@ Platforms actively fight downloaders, so **no downloader works 100% of the time*
 | Problem | What Aperture does |
 |---|---|
 | A platform changes its site | Extractors update **daily** (yt-dlp nightly builds), usually fixed within days |
-| Instagram blocks logged-out requests | Falls back to the **Apify backup** |
+| Instagram blocks logged-out requests | Reads the public post data directly; falls back to the **Apify backup** only if that fails |
 | A download glitches | **Retries automatically** with a simpler format |
 | Free hosting goes to sleep | Pings itself every 10 min: **no cold starts** (measured: 684 ms after 26 min idle) |
 | Something still fails | Says **what happened and what to try**, never a bare "error" |
@@ -213,7 +230,7 @@ Everything is set with environment variables. The full, commented list is in [`.
 
 - **Allowlisted hosts only.** Lookalike domains, local addresses, `file:` and credentialed URLs are rejected.
 - **No shell, ever.** Extractors run via argument arrays, and visitors can only pick a pre-validated quality id.
-- **No open proxy.** Downloads use server-side ids, and backup media must come from Instagram's own CDN.
+- **No open proxy.** Downloads use server-side ids, and any media fetched by direct link (Instagram photos, backup results) must come from Instagram's or Meta's own CDN.
 - **Hardened server:** strict CSP and security headers, rate limits, per-visitor caps, size, duration and time limits.
 - **Secrets stay secret:** tokens live in environment variables, never in the repo. GitHub secret scanning and push protection are on.
 
