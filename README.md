@@ -1,8 +1,8 @@
 # Aperture
 
-**Save reels, videos, photos and carousels from Instagram, X, Facebook, TikTok and YouTube.** Paste a link, pick a quality, get the file. It's a web app that works in Brave, Chrome and on phones, and you can install it to your home screen and share posts straight to it.
+**Save reels, videos, photos and carousels from Instagram, X, Facebook and Pinterest.** Paste a link, pick a quality, get the file. It's a web app that works in Brave, Chrome and on phones, and you can install it to your home screen and share posts straight to it.
 
-Also supports Threads, Reddit and Pinterest.
+When you run it on your own PC you can also enable TikTok, YouTube, Reddit and Threads (`ENABLED_PLATFORMS`). They're off on the public instance because those platforms block cloud servers.
 
 <p>
   <img src="docs/screenshot-result.png" alt="Aperture on desktop" width="62%">
@@ -36,6 +36,19 @@ Downloaders depend on the platforms, which actively change their sites to stop t
 
 - **Public instance (e.g. Render free):** most X, TikTok, Facebook and Reddit links work. YouTube and especially Instagram often hit "login required" or bot checks from cloud IPs.
 - **Your own PC:** the best success rate, plus your own login cookies for Instagram and private posts.
+
+## Make Instagram work reliably
+
+Measured on the live Render instance **without** a login, Instagram returned media for about 3 in 7 public posts. For the rest it sends logged-out cloud servers an *empty media response*. Sending requests as a logged-in account fixes most of these:
+
+1. Create a **throwaway Instagram account**. Don't use your personal one: Instagram can rate-limit or challenge an account that downloads a lot, and on a public instance everyone's downloads go through it.
+2. Log in to it in Brave or Chrome on your computer, and open a few posts so it looks like normal use.
+3. Install the **Get cookies.txt LOCALLY** extension, open instagram.com, and export the cookies (Netscape format).
+4. Render dashboard → **aperture → Environment → Secret Files → Add Secret File**. Name it `instagram-cookies.txt`, paste the file's contents, and save. Render redeploys, and the logs show `✓ Instagram login cookies loaded`.
+
+The cookies are used **only** for Instagram requests, are copied to a private (`0600`) temp file, and are never sent to the browser. If downloads start failing with "blocking downloads", the account was probably challenged: log in to it in a browser, complete any check, and export fresh cookies.
+
+**Limits even with a login:** Instagram caps how many requests one account can make per hour, private accounts need the account to follow them, and stories and deleted posts can't be fetched. Running Aperture on your home PC with your cookies is still the most reliable setup.
 
 ## Deploy free on Render (public instance)
 

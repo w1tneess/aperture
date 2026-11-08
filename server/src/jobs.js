@@ -128,7 +128,7 @@ async function runWithRetry(job) {
 function ytdlpArgs(job) {
   const { _probe: probe, _item: item, optionId } = job;
   const args = [
-    ...ytdlpBaseArgs(),
+    ...ytdlpBaseArgs(probe.platform),
     '--newline',
     '--progress',
     '--progress-template',
@@ -161,7 +161,7 @@ function ytdlpArgs(job) {
 
 function gallerydlArgs(job) {
   const { _probe: probe, _item: item } = job;
-  return [...gallerydlBaseArgs(), '--range', String(item.selector), '-D', job.dir, '-f', 'media.{extension}', '--', probe.url];
+  return [...gallerydlBaseArgs(probe.platform), '--range', String(item.selector), '-D', job.dir, '-f', 'media.{extension}', '--', probe.url];
 }
 
 const num = (s) => (s === 'NA' || s === 'None' || s === undefined ? null : Number(s));

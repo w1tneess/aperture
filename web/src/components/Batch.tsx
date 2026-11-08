@@ -9,11 +9,12 @@ type Row = { url: string; state: 'waiting' | 'reading' | 'queued' | 'error'; not
 type Props = {
   settings: Settings
   onProbe: (probe: Probe) => Promise<number>
+  enabled: { id: string }[] | null
 }
 
 const CONCURRENCY = 2
 
-export function Batch({ settings, onProbe }: Props) {
+export function Batch({ settings, onProbe, enabled }: Props) {
   const [text, setText] = useState('')
   const [rows, setRows] = useState<Row[]>([])
   const [running, setRunning] = useState(false)
@@ -21,7 +22,7 @@ export function Batch({ settings, onProbe }: Props) {
   const urls = extractUrls(text)
   const supported = urls.filter((u) => {
     const p = detectPlatform(u)
-    return p && p !== 'other'
+    return p !== null && p !== 'other' && (!enabled || enabled.some((e) => e.id === p))
   })
 
   const setRow = (url: string, patch: Partial<Row>) =>

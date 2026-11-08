@@ -44,6 +44,9 @@ const newId = () =>
     ? crypto.randomUUID()
     : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 
+const listNames = (names: string[]) =>
+  names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null
   return Boolean(el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)))
@@ -271,8 +274,9 @@ function Aperture() {
               Paste a link. <span className="hero-muted">Keep the post.</span>
             </h1>
             <p className="lead">
-              Reels, videos, photos and carousels from Instagram, X, Facebook, TikTok and more, saved straight to this
-              device.
+              Reels, videos, photos and carousels from{' '}
+              {listNames(info?.platforms?.map((p) => p.name) ?? ['Instagram', 'X', 'Facebook', 'Pinterest'])}, saved
+              straight to this device.
             </p>
             <LinkForm
               value={url}
@@ -281,6 +285,7 @@ function Aperture() {
               busy={loading}
               autoFetch={settings.autoFetch}
               inputRef={inputRef}
+              enabled={info?.platforms ?? null}
             />
             <div className="result-slot">
               {loading && <ResultSkeleton />}
@@ -305,7 +310,7 @@ function Aperture() {
           </section>
         )}
 
-        {tab === 'batch' && <Batch settings={settings} onProbe={downloadAll} />}
+        {tab === 'batch' && <Batch settings={settings} onProbe={downloadAll} enabled={info?.platforms ?? null} />}
 
         {tab === 'history' && (
           <History

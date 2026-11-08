@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { config } from './config.js';
 import { tools } from './tools.js';
+import { cookiesFor } from './cookies.js';
 
 export class ExtractError extends Error {
   constructor(code, message, detail, log) {
@@ -24,7 +25,7 @@ export function run(tool, args, { timeout = 60_000 } = {}) {
   });
 }
 
-export function ytdlpBaseArgs() {
+export function ytdlpBaseArgs(platform) {
   const args = [
     '--ignore-config',
     '--no-warnings',
@@ -41,13 +42,15 @@ export function ytdlpBaseArgs() {
     '--js-runtimes',
     `node:${process.execPath}`,
   ];
-  if (config.cookiesFile) args.push('--cookies', config.cookiesFile);
+  const cookies = cookiesFor(platform);
+  if (cookies) args.push('--cookies', cookies);
   return args;
 }
 
-export function gallerydlBaseArgs() {
+export function gallerydlBaseArgs(platform) {
   const args = ['--config-ignore'];
-  if (config.cookiesFile) args.push('--cookies', config.cookiesFile);
+  const cookies = cookiesFor(platform);
+  if (cookies) args.push('--cookies', cookies);
   return args;
 }
 
@@ -181,8 +184,8 @@ export function normalizeYtdlp(info) {
   };
 }
 
-export async function probeYtdlp(url) {
-  const args = [...ytdlpBaseArgs(), '--dump-single-json', '--playlist-end', String(config.maxItemsPerPost), '--', url];
+export async function probeYtdlp(url, platform) {
+  const args = [...ytdlpBaseArgs(platform), '--dump-single-json', '--playlist-end', String(config.maxItemsPerPost), '--', url];
   try {
     const out = await run(tools.ytdlp, args, { timeout: 60_000 });
     const info = JSON.parse(out);
@@ -227,11 +230,11 @@ export function normalizeGallerydl(messages) {
   };
 }
 
-export async function probeGallerydl(url) {
-  const args = [...gallerydlBaseArgs(), '--resolve-json', '--range', `1-${config.maxItemsPerPost}`, '--', url];
+export async function probeGallerydl(url, platform) {
+  const args = [...gallerydlBaseArgs(platform), '--resolve-json', '--range', `1-${config.maxItemsPerPost}`, '--', url];
   let out;
   try {
-    out = await run(tools.gallerydl, args, { timeout: 45_000 });
+    out = await run(tools.gallerydl, args, { timeout: 25_000 });
   } catch (err) {
     throw classifyError(err, 'gallery-dl');
   }
@@ -252,24 +255,24 @@ export async function probeGallerydl(url) {
  * - gallery-dl handles photos and mixed carousels, which yt-dlp skips.
  * For photo-capable platforms both run in parallel; gallery-dl wins only if it found photos.
  */
-export async function probe({ url, images }) {
+export async function probe({ url, images, platform }) {
   if (!images) {
     try {
-      return await probeYtdlp(url);
+      return await probeYtdlp(url, platform);
     } catch (err) {
       if (!['NO_VIDEO', 'UNSUPPORTED', 'EXTRACT_FAILED'].includes(err.code)) throw err;
-      return probeGallerydl(url).catch(() => Promise.reject(err));
+      return probeGallerydl(url, platform).catch(() => Promise.reject(err));
     }
   }
 
   // Run both. Once yt-dlp has answered, give gallery-dl only a short grace period instead of its full
   // timeout: a slow gallery-dl almost always means it's being blocked, and waiting made probes take ~45 s.
   const settle = (p) => p.then((value) => ({ status: 'fulfilled', value }), (reason) => ({ status: 'rejected', reason }));
-  const ytP = settle(probeYtdlp(url));
-  const gdP = settle(probeGallerydl(url));
+  const ytP = settle(probeYtdlp(url, platform));
+  const gdP = settle(probeGallerydl(url, platform));
   const yt = await ytP;
   const GRACE = { status: 'rejected', reason: new ExtractError('EXTRACT_FAILED', 'gallery-dl too slow', undefined, 'gallery-dl exceeded grace period') };
-  const gd = await Promise.race([gdP, new Promise((r) => setTimeout(() => r(GRACE), yt.status === 'fulfilled' ? 8_000 : 45_000))]);
+  const gd = await Promise.race([gdP, new Promise((r) => setTimeout(() => r(GRACE), yt.status === 'fulfilled' ? 8_000 : 26_000))]);
   const gdHasImages = gd.status === 'fulfilled' && gd.value.items.some((i) => i.kind === 'image');
   if (gdHasImages) return gd.value;
   if (yt.status === 'fulfilled') return yt.value;

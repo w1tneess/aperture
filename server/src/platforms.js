@@ -27,7 +27,7 @@ function hostMatches(hostname, domain) {
  * Validate and classify a pasted link.
  * @returns {{ url: string, platform: string, images: boolean } | { error: string }}
  */
-export function resolveUrl(input, extraHosts = []) {
+export function resolveUrl(input, extraHosts = [], enabled = null) {
   const raw = extractUrl(input);
   if (!raw) return { error: 'Paste a link that starts with http:// or https://.' };
 
@@ -46,7 +46,12 @@ export function resolveUrl(input, extraHosts = []) {
 
   const hostname = url.hostname.toLowerCase();
   const platform = PLATFORMS.find((p) => p.hosts.some((h) => hostMatches(hostname, h)));
-  if (platform) return { url: url.toString(), platform: platform.id, images: platform.images };
+  if (platform) {
+    if (enabled && !enabled.includes(platform.id)) {
+      return { error: `${platform.name} isn’t supported here. It blocks downloads from this server.` };
+    }
+    return { url: url.toString(), platform: platform.id, images: platform.images };
+  }
 
   if (extraHosts.some((h) => hostMatches(hostname, h))) {
     return { url: url.toString(), platform: 'other', images: false };

@@ -39,3 +39,11 @@ test('EXTRA_HOSTS opts additional sites in', () => {
   assert.equal(resolveUrl('https://vimeo.com/123', ['vimeo.com']).platform, 'other');
   assert.ok('error' in resolveUrl('https://vimeo.com/123'));
 });
+
+test('disabled platforms are rejected with a clear reason', () => {
+  const enabled = ['instagram', 'x', 'facebook', 'pinterest'];
+  assert.equal(resolveUrl('https://www.instagram.com/reel/abc/', [], enabled).platform, 'instagram');
+  const yt = resolveUrl('https://youtu.be/dQw4w9WgXcQ', [], enabled);
+  assert.ok('error' in yt && /YouTube/.test(yt.error));
+  assert.ok('error' in resolveUrl('https://www.tiktok.com/@a/video/1', [], enabled));
+});

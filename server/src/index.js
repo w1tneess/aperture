@@ -12,6 +12,7 @@ import { ExtractError, probe } from './extract.js';
 import { activeJobsFor, createJob, events, getJob, getProbe, initStorage, markSaved, publicJob, saveProbe } from './jobs.js';
 import { PLATFORMS, resolveUrl } from './platforms.js';
 import { resolveTools, tools } from './tools.js';
+import { hasInstagramLogin, initCookies } from './cookies.js';
 import { startAutoUpdate } from './updater.js';
 
 const app = express();
@@ -74,8 +75,11 @@ app.use('/api', (req, res, next) => (isAuthed(req) ? next() : fail(res, 401, 'AU
 // ------------------------------------------------------------------ routes
 
 app.get('/api/info', (_req, res) => {
+  const enabled = PLATFORMS.filter((p) => !config.enabledPlatforms || config.enabledPlatforms.includes(p.id));
   res.json({
     name: config.appName,
+    platforms: enabled.map(({ id, name }) => ({ id, name })),
+    instagramLogin: hasInstagramLogin(),
     publicMode: config.publicMode,
     maxDurationMinutes: Math.round(config.maxDurationSec / 60),
     maxFilesize: config.maxFilesize,
@@ -94,7 +98,7 @@ app.post('/api/probe', limiter(config.probeLimitPerMin), async (req, res) => {
   const parsed = z.object({ url: z.string().min(1).max(2048) }).safeParse(req.body);
   if (!parsed.success) return fail(res, 422, 'VALIDATION', 'Paste a link first.');
 
-  const target = resolveUrl(parsed.data.url, config.extraHosts);
+  const target = resolveUrl(parsed.data.url, config.extraHosts, config.enabledPlatforms);
   if ('error' in target) return fail(res, 422, 'BAD_URL', target.error);
 
   try {
@@ -239,13 +243,14 @@ app.use((err, _req, res, _next) => {
 
 await initStorage();
 await resolveTools();
+await initCookies();
 startAutoUpdate();
 app.listen(config.port, config.host, () => {
   console.log(`Aperture server on http://${config.host}:${config.port}`);
   const loopback = ['127.0.0.1', 'localhost', '::1'].includes(config.host);
-  if (config.publicMode) console.log('ℹ  PUBLIC_MODE on: stricter limits, cookies disabled.');
+  if (config.publicMode) console.log('ℹ  PUBLIC_MODE on: stricter limits; personal cookies off (Instagram-only cookies allowed).');
   if (!loopback && !config.passcode && !config.publicMode) {
     console.warn('⚠  Listening beyond localhost without APP_PASSCODE. Anyone on the network can use this server.');
   }
-  if (!config.cookiesFile && !config.publicMode) console.log('ℹ  No COOKIES_FILE set. Many Instagram posts need one (see README).');
+  if (!hasInstagramLogin()) console.log('ℹ  No Instagram login cookies: many Instagram posts will fail (see README).');
 });

@@ -48,6 +48,8 @@ export type Session = { required: boolean; authed: boolean }
 
 export type AppInfo = {
   name: string
+  platforms: { id: string; name: string }[]
+  instagramLogin: boolean
   publicMode: boolean
   maxDurationMinutes: number
   maxFilesize: string

@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +28,14 @@ const flag = (value, fallback) => (value == null || value === '' ? fallback : /^
 // uses anyone's personal cookies. Leave it off when you run Aperture just for yourself.
 const publicMode = flag(process.env.PUBLIC_MODE, false);
 
+// Render "Secret Files" are mounted here. A file with this name turns on logged-in Instagram access.
+const RENDER_IG_SECRET = '/etc/secrets/instagram-cookies.txt';
+const instagramCookiesSource =
+  process.env.INSTAGRAM_COOKIES_FILE || (fs.existsSync(RENDER_IG_SECRET) ? RENDER_IG_SECRET : '');
+
+// Platforms that work reliably from a cloud server. Others are blocked by the platforms themselves there.
+const PUBLIC_DEFAULT_PLATFORMS = ['instagram', 'x', 'facebook', 'pinterest'];
+
 export const config = {
   appName: 'Aperture',
   port: int(process.env.PORT, 8787),
@@ -34,8 +43,19 @@ export const config = {
   isProd: process.env.NODE_ENV === 'production' || process.argv.includes('--prod'),
   publicMode,
 
-  // Netscape-format cookies.txt. Ignored in public mode: a shared server must not act as your account.
+  // Netscape-format cookies.txt for every platform. Ignored in public mode: a shared server must not act as
+  // your personal account.
   cookiesFile: publicMode ? '' : process.env.COOKIES_FILE || '',
+  // Cookies used for Instagram only, also in public mode. Use a throwaway account: Instagram may
+  // rate-limit or challenge an account that serves many downloads.
+  instagramCookiesSource,
+
+  // Which platforms this instance accepts. Comma-separated ids; defaults depend on PUBLIC_MODE.
+  enabledPlatforms: list(process.env.ENABLED_PLATFORMS).length
+    ? list(process.env.ENABLED_PLATFORMS)
+    : publicMode
+      ? PUBLIC_DEFAULT_PLATFORMS
+      : null, // null = all
 
   tmpDir: process.env.TMP_DIR || path.join(os.tmpdir(), 'aperture-downloads'),
   maxConcurrent: int(process.env.MAX_CONCURRENT, publicMode ? 2 : 3),

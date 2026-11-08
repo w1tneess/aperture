@@ -11,9 +11,13 @@ services:
         value: "1"
       - key: AUTO_UPDATE
         value: "1"
+      - key: ENABLED_PLATFORMS
+        value: instagram,x,facebook,pinterest
       - key: TRUST_PROXY
         value: "1"
       - key: CONTACT_URL
         value: https://github.com/w1tneess/aperture/issues
       - key: REPO_URL
         value: https://github.com/w1tneess/aperture
+# Instagram login (strongly recommended): Dashboard → aperture → Environment → Secret Files →
+# add a file named instagram-cookies.txt with cookies from a THROWAWAY Instagram account. See README.

@@ -1,5 +1,5 @@
 import { useState, type RefObject } from 'react'
-import { detectPlatform, PLATFORMS } from '../lib/platforms'
+import { detectPlatform, PLATFORMS, platformName } from '../lib/platforms'
 import { Icon } from './Icon'
 
 type Props = {
@@ -9,24 +9,26 @@ type Props = {
   busy: boolean
   autoFetch: boolean
   inputRef: RefObject<HTMLInputElement | null>
+  /** Platforms this server accepts; falls back to the full list until /api/info loads. */
+  enabled: { id: string; name: string }[] | null
 }
 
-const isSupported = (text: string) => {
-  const p = detectPlatform(text)
-  return p !== null && p !== 'other'
-}
-
-export function LinkForm({ value, onChange, onSubmit, busy, autoFetch, inputRef }: Props) {
+export function LinkForm({ value, onChange, onSubmit, busy, autoFetch, inputRef, enabled }: Props) {
   const [note, setNote] = useState<string | null>(null)
   const platform = detectPlatform(value)
+  const chips = enabled ?? PLATFORMS.map(({ id, name }) => ({ id, name }))
+  const isEnabled = (id: string | null) => id !== null && chips.some((c) => c.id === id)
+  const isSupported = (text: string) => isEnabled(detectPlatform(text))
 
   const hint = !value.trim()
     ? note
     : platform === null
       ? 'No link found in that text yet.'
       : platform === 'other'
-        ? 'That site isn’t one of the ones above. It only works if the server allows it.'
-        : null
+        ? 'That site isn’t one of the ones above.'
+        : !isEnabled(platform)
+          ? `${platformName(platform)} isn’t supported here. It blocks downloads from this server.`
+          : null
 
   async function pasteFromClipboard() {
     setNote(null)
@@ -99,7 +101,7 @@ export function LinkForm({ value, onChange, onSubmit, busy, autoFetch, inputRef 
       </div>
 
       <ul className="platforms" aria-label="Supported sites">
-        {PLATFORMS.map((p) => (
+        {chips.map((p) => (
           <li key={p.id} className={platform === p.id ? 'is-active' : undefined} aria-current={platform === p.id || undefined}>
             {p.name}
           </li>
