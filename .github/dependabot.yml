@@ -4,6 +4,10 @@ updates:
     directory: /server
     schedule: { interval: weekly }
     groups: { server-deps: { patterns: ["*"] } }
+    ignore:
+      # Express 5 changes route syntax (e.g. app.get('*')); upgrade deliberately, not via a bot PR.
+      - dependency-name: express
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
     directory: /web
     schedule: { interval: weekly }
@@ -11,6 +15,10 @@ updates:
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }
+    ignore:
+      # Stay on Node LTS (22); odd-numbered releases like 25 are short-lived.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
