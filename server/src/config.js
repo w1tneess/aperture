@@ -50,6 +50,11 @@ export const config = {
   // rate-limit or challenge an account that serves many downloads.
   instagramCookiesSource,
 
+  // Apify fallback for Instagram (no personal login needed). Token from https://console.apify.com.
+  apifyToken: process.env.APIFY_TOKEN || '',
+  // Each lookup costs ~$0.0027; 60/day ≈ $4.90/month, inside Apify's $5 free monthly credit.
+  apifyDailyLimit: int(process.env.APIFY_DAILY_LIMIT, 60),
+
   // Which platforms this instance accepts. Comma-separated ids; defaults depend on PUBLIC_MODE.
   enabledPlatforms: list(process.env.ENABLED_PLATFORMS).length
     ? list(process.env.ENABLED_PLATFORMS)

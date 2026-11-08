@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { config } from './config.js';
 import { tools } from './tools.js';
 import { cookiesFor } from './cookies.js';
+import { apifyEnabled, probeApify } from './apify.js';
 
 export class ExtractError extends Error {
   constructor(code, message, detail, log) {
@@ -255,7 +256,18 @@ export async function probeGallerydl(url, platform) {
  * - gallery-dl handles photos and mixed carousels, which yt-dlp skips.
  * For photo-capable platforms both run in parallel; gallery-dl wins only if it found photos.
  */
-export async function probe({ url, images, platform }) {
+export async function probe(target) {
+  if (target.platform !== 'instagram' || !apifyEnabled()) return probeFree(target);
+  // Instagram: free extractors first; if they can't read the post, ask the Apify backup.
+  try {
+    return await probeFree(target);
+  } catch (err) {
+    console.warn(`[probe] instagram free path failed (${err.code}); trying Apify backup`);
+    return probeApify(target.url);
+  }
+}
+
+async function probeFree({ url, images, platform }) {
   if (!images) {
     try {
       return await probeYtdlp(url, platform);

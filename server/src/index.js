@@ -13,6 +13,7 @@ import { activeJobsFor, createJob, events, getJob, getProbe, initStorage, markSa
 import { PLATFORMS, resolveUrl } from './platforms.js';
 import { resolveTools, tools } from './tools.js';
 import { hasInstagramLogin, initCookies } from './cookies.js';
+import { apifyEnabled } from './apify.js';
 import { startAutoUpdate } from './updater.js';
 
 const app = express();
@@ -80,6 +81,7 @@ app.get('/api/info', (_req, res) => {
     name: config.appName,
     platforms: enabled.map(({ id, name }) => ({ id, name })),
     instagramLogin: hasInstagramLogin(),
+    instagramBackup: apifyEnabled(),
     publicMode: config.publicMode,
     maxDurationMinutes: Math.round(config.maxDurationSec / 60),
     maxFilesize: config.maxFilesize,
@@ -252,5 +254,6 @@ app.listen(config.port, config.host, () => {
   if (!loopback && !config.passcode && !config.publicMode) {
     console.warn('⚠  Listening beyond localhost without APP_PASSCODE. Anyone on the network can use this server.');
   }
-  if (!hasInstagramLogin()) console.log('ℹ  No Instagram login cookies: many Instagram posts will fail (see README).');
+  if (apifyEnabled()) console.log(`✓ Instagram backup via Apify (max ${config.apifyDailyLimit} lookups/day)`);
+  if (!hasInstagramLogin() && !apifyEnabled()) console.log('ℹ  No Instagram login cookies: many Instagram posts will fail (see README).');
 });

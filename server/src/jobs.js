@@ -1,9 +1,13 @@
 import { spawn } from 'node:child_process';
+import { createWriteStream } from 'node:fs';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { config } from './config.js';
+import { MEDIA_HOST } from './apify.js';
 import { classifyError, gallerydlBaseArgs, ytdlpBaseArgs } from './extract.js';
 import { tools } from './tools.js';
 
@@ -166,8 +170,70 @@ function gallerydlArgs(job) {
 
 const num = (s) => (s === 'NA' || s === 'None' || s === undefined ? null : Number(s));
 
+const SIZE_UNITS = { K: 1024, M: 1024 ** 2, G: 1024 ** 3 };
+const maxBytes = () => {
+  const m = /^(\d+(?:\.\d+)?)([KMG])?$/i.exec(config.maxFilesize);
+  return m ? Number(m[1]) * (SIZE_UNITS[(m[2] || '').toUpperCase()] || 1) : 2 * 1024 ** 3;
+};
+
+function runFfmpeg(args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('ffmpeg', args, { windowsHide: true });
+    let err = '';
+    child.stderr.on('data', (c) => (err = (err + c).slice(-2000)));
+    child.on('error', reject);
+    child.on('close', (code) => (code === 0 ? resolve() : reject(Object.assign(new Error('ffmpeg failed'), { stderr: err }))));
+  });
+}
+
+/** Items from the Apify backup carry a direct Instagram CDN URL: stream it to disk with progress. */
+async function executeDirect(job) {
+  const url = new URL(job._item.mediaUrl);
+  if (url.protocol !== 'https:' || !MEDIA_HOST.test(url.hostname)) {
+    throw Object.assign(new Error('Refused an unexpected media host.'), { code: 'FAILED' });
+  }
+  const res = await fetch(url, { signal: AbortSignal.timeout(10 * 60_000), headers: { 'user-agent': 'Mozilla/5.0' } });
+  if (!res.ok || !res.body) {
+    throw Object.assign(new Error('Instagram’s media link expired. Fetch the post again.'), { code: res.status === 403 ? 'EXPIRED' : 'FAILED' });
+  }
+  const total = Number(res.headers.get('content-length')) || null;
+  const limit = maxBytes();
+  if (total && total > limit) throw Object.assign(new Error(`That file is larger than the ${config.maxFilesize} limit.`), { code: 'TOO_LARGE' });
+
+  const ext = job._item.kind === 'image' ? 'jpg' : 'mp4';
+  const media = path.join(job.dir, `media.${ext}`);
+  let done = 0;
+  let last = 0;
+  const meter = new Transform({
+    transform(chunk, _enc, cb) {
+      done += chunk.length;
+      if (done > limit) return cb(Object.assign(new Error(`That file is larger than the ${config.maxFilesize} limit.`), { code: 'TOO_LARGE' }));
+      if (Date.now() - last > 250) {
+        last = Date.now();
+        update(job, { progress: total ? Math.min(100, Math.round((done / total) * 1000) / 10) : null });
+      }
+      cb(null, chunk);
+    },
+  });
+  await pipeline(Readable.fromWeb(res.body), meter, createWriteStream(media));
+
+  if (job.optionId.startsWith('audio') && job._item.kind === 'video') {
+    update(job, { status: 'processing', progress: null });
+    const fmt = job.optionId === 'audio:m4a' ? 'm4a' : 'mp3';
+    const out = path.join(job.dir, `audio.${fmt}`);
+    const codec = fmt === 'mp3' ? ['-codec:a', 'libmp3lame', '-q:a', '0'] : ['-c:a', 'aac', '-b:a', '192k'];
+    await runFfmpeg(['-y', '-loglevel', 'error', '-i', media, '-vn', ...codec, out]);
+    await fs.rm(media, { force: true });
+  }
+}
+
 async function execute(job) {
   await fs.mkdir(job.dir, { recursive: true });
+  if (job._item.source === 'direct') {
+    update(job, { status: 'running', progress: 0 });
+    await executeDirect(job);
+    return finish(job);
+  }
   update(job, { status: 'running', progress: job._item.source === 'ytdlp' ? 0 : null });
 
   const isYt = job._item.source === 'ytdlp';
@@ -224,6 +290,10 @@ async function execute(job) {
     });
   });
 
+  return finish(job);
+}
+
+async function finish(job) {
   // yt-dlp exits 0 when --max-filesize skips a file, so "no file" must be checked explicitly.
   const files = (await fs.readdir(job.dir)).filter((f) => !/\.(part|ytdl|temp)$|\.part-Frag/.test(f));
   if (!files.length) {

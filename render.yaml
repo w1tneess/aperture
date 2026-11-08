@@ -19,5 +19,5 @@ services:
         value: https://github.com/w1tneess/aperture/issues
       - key: REPO_URL
         value: https://github.com/w1tneess/aperture
-# Instagram login (strongly recommended): Dashboard → aperture → Environment → Secret Files →
-# add a file named instagram-cookies.txt with cookies from a THROWAWAY Instagram account. See README.
+# Instagram backup (recommended): Dashboard → aperture → Environment → add APIFY_TOKEN
+# (free Apify account, $5/month credit). See README.

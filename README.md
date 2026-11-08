@@ -37,18 +37,19 @@ Downloaders depend on the platforms, which actively change their sites to stop t
 - **Public instance (e.g. Render free):** most X, TikTok, Facebook and Reddit links work. YouTube and especially Instagram often hit "login required" or bot checks from cloud IPs.
 - **Your own PC:** the best success rate, plus your own login cookies for Instagram and private posts.
 
-## Make Instagram work reliably
+## Make Instagram work reliably (no personal login)
 
-Measured on the live Render instance **without** a login, Instagram returned media for about 3 in 7 public posts. For the rest it sends logged-out cloud servers an *empty media response*. Sending requests as a logged-in account fixes most of these:
+Aperture fetches Instagram posts itself first, which is free and works for most public posts. If that fails, it asks a **backup**: Apify's official [Instagram scraper](https://apify.com/apify/instagram-scraper), which runs on Apify's own infrastructure. No Instagram account of yours is involved.
 
-1. Create a **throwaway Instagram account**. Don't use your personal one: Instagram can rate-limit or challenge an account that downloads a lot, and on a public instance everyone's downloads go through it.
-2. Log in to it in Brave or Chrome on your computer, and open a few posts so it looks like normal use.
-3. Install the **Get cookies.txt LOCALLY** extension, open instagram.com, and export the cookies (Netscape format).
-4. Render dashboard → **aperture → Environment → Secret Files → Add Secret File**. Name it `instagram-cookies.txt`, paste the file's contents, and save. Render redeploys, and the logs show `✓ Instagram login cookies loaded`.
+1. Sign up free at [apify.com](https://apify.com). The free plan includes $5 of usage credit every month.
+2. Copy your API token from **Apify Console → Settings → API & Integrations**.
+3. In Render: **aperture → Environment → Add Environment Variable**. Set `APIFY_TOKEN` to the token, then save. Render redeploys, and the logs show `✓ Instagram backup via Apify`.
 
-The cookies are used **only** for Instagram requests, are copied to a private (`0600`) temp file, and are never sent to the browser. If downloads start failing with "blocking downloads", the account was probably challenged: log in to it in a browser, complete any check, and export fresh cookies.
+Each backup lookup costs about $0.0027. `APIFY_DAILY_LIMIT` (default 60/day, about $4.90/month) keeps usage inside the free credit; when it's reached, Instagram falls back to the free path only until the next day. Media is downloaded straight from Instagram's CDN, and only `*.cdninstagram.com` / `*.fbcdn.net` URLs are accepted.
 
-**Limits even with a login:** Instagram caps how many requests one account can make per hour, private accounts need the account to follow them, and stories and deleted posts can't be fetched. Running Aperture on your home PC with your cookies is still the most reliable setup.
+Private accounts, stories and deleted posts can't be downloaded either way.
+
+**Running it only for yourself?** You can instead give Aperture your own login with `COOKIES_FILE` (see below). Don't do that on a public instance: everyone's downloads would run through your account.
 
 ## Deploy free on Render (public instance)
 
