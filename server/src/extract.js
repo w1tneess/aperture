@@ -259,11 +259,23 @@ export async function probeGallerydl(url, platform) {
 export async function probe(target) {
   if (target.platform !== 'instagram' || !apifyEnabled()) return probeFree(target);
   // Instagram: free extractors first; if they can't read the post, ask the Apify backup.
+  let free;
   try {
-    return await probeFree(target);
+    free = await probeFree(target);
   } catch (err) {
     console.warn(`[probe] instagram free path failed (${err.code}); trying Apify backup`);
     return probeApify(target.url);
+  }
+  // Logged-out Instagram often only exposes video-only streams, which would download without sound.
+  // A video item with no audio option means no audio stream was found: prefer the backup's full MP4.
+  const silent = free.items.some((i) => i.kind === 'video' && i.source === 'ytdlp' && !i.options.some((o) => o.id === 'audio'));
+  if (!silent) return free;
+  try {
+    console.warn('[probe] instagram free path found video without audio; using Apify backup');
+    return await probeApify(target.url);
+  } catch (err) {
+    console.warn(`[probe] Apify backup failed (${err.code}: ${err.log || err.message}); keeping free result`);
+    return free;
   }
 }
 
