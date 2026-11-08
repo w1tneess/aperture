@@ -18,5 +18,11 @@
     "express-rate-limit": "^8.7.3",
     "helmet": "^8.3.0",
     "zod": "^4.6.7"
-  }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/w1tneess/aperture"
+  },
+  "description": "Aperture server: Express API wrapping yt-dlp and gallery-dl"
 }

@@ -1,7 +1,7 @@
 {
   "name": "aperture-web",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,5 +23,11 @@
     "oxlint": "^1.90.0",
     "typescript": "~7.0.2",
     "vite": "^8.3.6"
-  }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/w1tneess/aperture"
+  },
+  "description": "Aperture web app (React + Vite)"
 }

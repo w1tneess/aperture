@@ -286,6 +286,7 @@ function Aperture() {
               autoFetch={settings.autoFetch}
               inputRef={inputRef}
               enabled={info?.platforms ?? null}
+              extraHosts={info?.extraHosts ?? []}
             />
             <div className="result-slot">
               {loading && <ResultSkeleton />}

@@ -1,0 +1,17 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: input
+    id: platform
+    attributes: { label: Platform, placeholder: "Instagram / X / Facebook / Pinterest" }
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: The error message shown, and what you expected instead. Please DON'T paste private links, cookies or tokens.
+    validations: { required: true }
+  - type: input
+    id: where
+    attributes: { label: Where, placeholder: "aperture.advaitachandra.in / self-hosted (OS)" }

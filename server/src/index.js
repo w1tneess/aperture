@@ -82,6 +82,7 @@ app.get('/api/info', (_req, res) => {
     platforms: enabled.map(({ id, name }) => ({ id, name })),
     instagramLogin: hasInstagramLogin(),
     instagramBackup: apifyEnabled(),
+    extraHosts: config.extraHosts,
     publicMode: config.publicMode,
     maxDurationMinutes: Math.round(config.maxDurationSec / 60),
     maxFilesize: config.maxFilesize,

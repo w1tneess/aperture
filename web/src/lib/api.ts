@@ -50,6 +50,8 @@ export type AppInfo = {
   name: string
   platforms: { id: string; name: string }[]
   instagramLogin: boolean
+  instagramBackup: boolean
+  extraHosts: string[]
   publicMode: boolean
   maxDurationMinutes: number
   maxFilesize: string
