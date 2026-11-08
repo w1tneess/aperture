@@ -177,8 +177,14 @@ export function normalizeYtdlp(info) {
     };
   });
   const first = entries[0] || {};
+  let title = info.title || info.description?.slice(0, 120) || first.title || 'Untitled';
+  // yt-dlp's generic page extractor numbers embedded media ("Page title (1)"); drop that counter.
+  const generic = [info.extractor_key, info.extractor].some((x) => /^(generic|html5)/i.test(String(x || '')));
+  if (generic && entries.length === 1) {
+    title = title.replace(/\s\(1\)$/, '');
+  }
   return {
-    title: info.title || info.description?.slice(0, 120) || first.title || 'Untitled',
+    title,
     uploader: info.uploader || info.channel || first.uploader || first.channel || null,
     duration: isList ? null : info.duration ?? null,
     items,

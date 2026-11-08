@@ -12,7 +12,7 @@ const HINTS: Record<string, { self: string; public: string }> = {
     public: 'Only public posts can be downloaded here.',
   },
   MISSING_TOOL: {
-    self: 'Install the extractors on the server machine: py -m pip install -U "yt-dlp[default]" gallery-dl',
+    self: 'Install the extractors on the server machine: py -m pip install -U --pre "yt-dlp[default]" gallery-dl',
     public: 'The server is being updated. Try again shortly.',
   },
   NETWORK: {
@@ -20,7 +20,7 @@ const HINTS: Record<string, { self: string; public: string }> = {
     public: 'The server may be waking up (free hosting sleeps when idle). Wait about a minute and try again.',
   },
   EXTRACT_FAILED: {
-    self: 'Platforms change often. Updating usually fixes it: py -m pip install -U "yt-dlp[default]" gallery-dl',
+    self: 'Platforms change often. Updating usually fixes it: py -m pip install -U --pre "yt-dlp[default]" gallery-dl',
     public: 'The platform may have changed something. These usually get fixed within a day. Try again later.',
   },
   UNREACHABLE: {

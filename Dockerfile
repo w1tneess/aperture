@@ -15,7 +15,8 @@ RUN apt-get update \
 # Extractors live in a venv owned by the app user, so AUTO_UPDATE can upgrade them without root.
 ENV VIRTUAL_ENV=/opt/venv PATH=/opt/venv/bin:$PATH
 RUN python3 -m venv /opt/venv \
- && pip install --no-cache-dir -U pip "yt-dlp[default]" gallery-dl \
+ && pip install --no-cache-dir -U pip \
+ && pip install --no-cache-dir -U --pre "yt-dlp[default]" gallery-dl \
  && chown -R node:node /opt/venv
 
 WORKDIR /app

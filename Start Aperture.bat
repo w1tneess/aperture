@@ -27,7 +27,7 @@ if not defined PY (
 %PY% -m yt_dlp --version >nul 2>nul
 if errorlevel 1 (
   echo  Installing yt-dlp and gallery-dl...
-  %PY% -m pip install -U "yt-dlp[default]" gallery-dl
+  %PY% -m pip install -U --pre "yt-dlp[default]" gallery-dl
   if errorlevel 1 goto failed
 )
 

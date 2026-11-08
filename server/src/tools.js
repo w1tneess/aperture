@@ -44,7 +44,7 @@ export async function resolveTools() {
   const show = (name, t) =>
     t.version
       ? console.log(`✓ ${name} ${t.version}${t.pre.length ? ` (via ${t.cmd} ${t.pre.join(' ')})` : ''}`)
-      : console.warn(`✗ ${name} not found. Install it: py -m pip install -U yt-dlp gallery-dl`);
+      : console.warn(`✗ ${name} not found. Install it: py -m pip install -U --pre "yt-dlp[default]" gallery-dl`);
   show('yt-dlp', ytdlp);
   show('gallery-dl', gallerydl);
   if (!ffmpeg) console.warn('✗ ffmpeg not found. HD video merging and MP3 need it (Windows: winget install Gyan.FFmpeg).');

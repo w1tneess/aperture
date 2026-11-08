@@ -1,90 +1,153 @@
+<div align="center">
+
+<img src="web/public/favicon.svg" alt="Aperture logo" width="96" height="96">
+
 # Aperture
 
-**Live: https://aperture.advaitachandra.in**
+**Paste a link. Keep the post.**
 
-**Save reels, videos, photos and carousels from Instagram, X, Facebook and Pinterest.** Paste a link, pick a quality, get the file. It's a web app that works in Brave, Chrome and on phones, and you can install it to your home screen and share posts straight to it.
+Save reels, videos, photos and full carousels from **Instagram, X, Facebook and Pinterest**,
+straight to your phone or computer. No ads, no accounts, no tracking.
 
-When you run it on your own PC you can also enable TikTok, YouTube, Reddit and Threads (`ENABLED_PLATFORMS`). They're off on the public instance because those platforms block cloud servers.
+<a href="https://aperture.advaitachandra.in"><strong>✨ Open the app →</strong></a>
 
-<p>
-  <img src="docs/screenshot-result.png" alt="Aperture on desktop" width="62%">
-  <img src="docs/screenshot-mobile-dark.png" alt="Aperture on a phone, dark mode" width="28%">
-</p>
+<br><br>
 
-## Features
+[![Live](https://img.shields.io/website?url=https%3A%2F%2Faperture.advaitachandra.in%2Fapi%2Finfo&label=live&up_message=online&down_message=offline&style=flat-square)](https://aperture.advaitachandra.in)
+[![CI](https://img.shields.io/github/actions/workflow/status/w1tneess/aperture/ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/w1tneess/aperture/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-c43a1b?style=flat-square)](LICENSE)
+![Node 20.12+](https://img.shields.io/badge/node-20.12%2B-1b1a17?style=flat-square&logo=node.js&logoColor=white)
+![React 19](https://img.shields.io/badge/react-19-1b1a17?style=flat-square&logo=react&logoColor=61dafb)
+![PWA](https://img.shields.io/badge/PWA-installable-1b1a17?style=flat-square&logo=pwa&logoColor=white)
 
-- **Paste anywhere**: <kbd>Ctrl</kbd>+<kbd>V</kbd> anywhere on the page; pasted chat messages work too ("look at this https://… 🔥").
-- **Quality picker**: Best / 1080p / 720p / 480p / audio only (MP3 or M4A), with size estimates.
-- **Carousels**: every photo and video in a post; download one or all.
-- **Batch**: paste a list of links and queue them all.
-- **Installable app**: in Brave, use *Install app*; in mobile Chrome, *Add to Home screen*. On Android it then appears in the share sheet.
-- **Live progress**, light/dark themes, keyboard friendly, screen-reader tested.
-- **Nothing kept**: files are deleted from the server minutes after download. There are no accounts and no database.
+<br>
 
-## How reliable is it?
+<img src="docs/screenshots/result.png" alt="Aperture showing a video ready to download with quality options" width="760">
 
-Downloaders depend on the platforms, which actively change their sites to stop them. **No downloader works 100% of the time**, including the big commercial ones. Aperture is built to fail rarely and recover quickly:
+</div>
 
-| | |
+---
+
+## Why Aperture
+
+Most "downloader" sites are ad farms with fake buttons. Aperture is the opposite: one clean page that does the job and gets out of the way.
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### ⚡ Fast by design
+- **Paste anywhere:** <kbd>Ctrl</kbd>+<kbd>V</kbd> on the page, no clicking the box first. <kbd>/</kbd> focuses it.
+- **Messy text works:** paste a whole chat message ("lol look at this https://… 🔥") and it finds the link.
+- **Quick mode:** skip the preview and download instantly at your default quality.
+- **Batch:** paste a list of links and queue them all at once.
+
+</td>
+<td width="50%" valign="top">
+
+### 🎛️ You choose the output
+- **Quality picker:** Best, 1080p, 720p, 480p, with size estimates.
+- **Audio only:** MP3 or M4A.
+- **Carousels:** every photo and video in a post, one at a time or all at once.
+- **Live progress:** real progress bars, speed and time left.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 📱 Feels like an app
+- **Installable:** *Install app* in Brave/Chrome, *Add to Home screen* on Android.
+- **Share target:** on Android, share a post from Instagram or X straight to Aperture.
+- **Light and dark** themes, keyboard-friendly, screen-reader tested (zero axe violations).
+
+</td>
+<td width="50%" valign="top">
+
+### 🔒 Private by default
+- **No accounts, no database, no analytics.**
+- **Files are deleted from the server within minutes** of being created.
+- **History stays on your device** (browser storage), and you can turn it off.
+
+</td>
+</tr>
+</table>
+
+<div align="center">
+<img src="docs/screenshots/carousel-dark.png" alt="A three-item carousel in dark mode" width="560">
+&nbsp;
+<img src="docs/screenshots/mobile-dark.png" alt="Aperture on a phone" width="190">
+</div>
+
+## How it works
+
+```mermaid
+flowchart LR
+    A["🔗 You paste a link"] --> B{"Allowed<br>platform?"}
+    B -- no --> X["Friendly error"]
+    B -- yes --> C["yt-dlp + gallery-dl<br>(free, run in parallel)"]
+    C -- "works" --> D["Preview + quality options"]
+    C -- "Instagram blocked<br>or silent video" --> E["Apify backup<br>(Instagram only)"]
+    E --> D
+    D --> F["Server downloads,<br>merges audio with ffmpeg"]
+    F --> G["📥 File saved to your device"]
+    G --> H["🧹 Server copy deleted<br>within minutes"]
+```
+
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** handles video, quality selection and audio extraction.
+- **[gallery-dl](https://github.com/mikf/gallery-dl)** handles photos and mixed carousels.
+- **[Apify](https://apify.com/apify/instagram-scraper)** is an optional backup for Instagram posts the free extractors can't read. No personal Instagram account is ever used.
+
+## Reliability, honestly
+
+Platforms actively fight downloaders, so **no downloader works 100% of the time**. Aperture is built to fail rarely and recover on its own:
+
+| Problem | What Aperture does |
 |---|---|
-| Two extractors | [yt-dlp](https://github.com/yt-dlp/yt-dlp) for video and [gallery-dl](https://github.com/mikf/gallery-dl) for photos and mixed carousels, with automatic fallback between them |
-| Auto-update | `AUTO_UPDATE=1` upgrades both on start and daily. Most breakages are fixed upstream within days. |
-| Automatic retry | A failed download is retried once with a simpler format |
-| Network retries | Retries for flaky connections and known platform errors |
-| YouTube | Ships with the JavaScript runtime support YouTube now requires |
-| Clear errors | Every failure says what happened and what to try |
+| A platform changes its site | Extractors update **daily** (yt-dlp nightly builds), usually fixed within days |
+| Instagram blocks logged-out requests | Falls back to the **Apify backup** |
+| A download glitches | **Retries automatically** with a simpler format |
+| Free hosting goes to sleep | Pings itself every 10 min: **no cold starts** (measured: 684 ms after 26 min idle) |
+| Something still fails | Says **what happened and what to try**, never a bare "error" |
 
-**Where it runs matters.** Platforms block cloud-server IPs far more than home connections:
+The public instance supports Instagram, X, Facebook and Pinterest. TikTok, YouTube and Reddit block cloud servers, but they work if you [self-host at home](#-run-it-yourself) and set `ENABLED_PLATFORMS`.
 
-- **Public instance (e.g. Render free):** most X, TikTok, Facebook and Reddit links work. YouTube and especially Instagram often hit "login required" or bot checks from cloud IPs.
-- **Your own PC:** the best success rate, plus your own login cookies for Instagram and private posts.
+## 🚀 Run it yourself
 
-## Make Instagram work reliably (no personal login)
+### One click on Render (free)
 
-Aperture fetches Instagram posts itself first, which is free and works for most public posts. If that fails, it asks a **backup**: Apify's official [Instagram scraper](https://apify.com/apify/instagram-scraper), which runs on Apify's own infrastructure. No Instagram account of yours is involved.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/w1tneess/aperture)
 
-1. Sign up free at [apify.com](https://apify.com). The free plan includes $5 of usage credit every month.
-2. Copy your API token from **Apify Console → Settings → API & Integrations**.
-3. In Render: **aperture → Environment → Add Environment Variable**. Set `APIFY_TOKEN` to the token, then save. Render redeploys, and the logs show `✓ Instagram backup via Apify`.
+The [`render.yaml`](render.yaml) blueprint sets up a free Docker service with public-mode limits, daily auto-updates and keep-awake. For the Instagram backup, add an `APIFY_TOKEN` environment variable ([free Apify account](https://apify.com), $5 of credit every month; Aperture caps usage at 60 lookups a day to stay inside it).
 
-Each backup lookup costs about $0.0027. `APIFY_DAILY_LIMIT` (default 60/day, about $4.90/month) keeps usage inside the free credit; when it's reached, Instagram falls back to the free path only until the next day. Media is downloaded straight from Instagram's CDN, and only `*.cdninstagram.com` / `*.fbcdn.net` URLs are accepted.
+### On your computer
 
-Private accounts, stories and deleted posts can't be downloaded either way.
+You need **Node 20.12+**, **Python 3.9+** and **ffmpeg**.
 
-**Running it only for yourself?** You can instead give Aperture your own login with `COOKIES_FILE` (see below). Don't do that on a public instance: everyone's downloads would run through your account.
+<details>
+<summary><b>🪟 Windows</b></summary>
 
-## Deploy free on Render (public instance)
+Install the prerequisites in PowerShell, one line at a time, then reopen PowerShell:
 
-1. Push this repo to GitHub.
-2. In [Render](https://render.com): **New → Blueprint**, pick the repo. `render.yaml` sets up a free Docker web service with `PUBLIC_MODE=1` and `AUTO_UPDATE=1`.
-3. `CONTACT_URL` (takedown requests → this repo's Issues) and `REPO_URL` are already set in `render.yaml`. Change them there if you fork.
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+```powershell
+winget install Python.Python.3.12
+```
+```powershell
+winget install Gyan.FFmpeg
+```
 
-Render's free tier ([docs](https://render.com/docs/free)) sleeps after 15 minutes without traffic. Aperture prevents that by visiting its own public URL every 10 minutes (Render sets `RENDER_EXTERNAL_URL` automatically; `KEEP_AWAKE=0` turns it off). Render gives 750 free instance hours a month and a month has at most 744, so **one** always-on service fits. A second free service in the same workspace would run both out of hours. The disk is temporary, which suits Aperture: files are only kept for minutes anyway.
+Then double-click **`Start Aperture.bat`**. It installs everything else, builds the app and opens http://127.0.0.1:8787.
 
-Public mode turns on stricter limits: 500 MB per file, 90-minute videos, 3 downloads at a time per visitor, rate-limited requests, and cookies are always ignored, so the server never acts as anyone's account. The `Dockerfile` also runs on any other Docker host.
+</details>
 
-## Run it on your own PC
-
-Requirements: **Node 20.12+**, **Python 3.9+**, **ffmpeg**.
-
-### Windows: easiest way
-
-1. Install the prerequisites in PowerShell, one line at a time, then close and reopen PowerShell:
-   ```powershell
-   winget install OpenJS.NodeJS.LTS
-   ```
-   ```powershell
-   winget install Python.Python.3.12
-   ```
-   ```powershell
-   winget install Gyan.FFmpeg
-   ```
-2. Double-click **`Start Aperture.bat`**. It installs the rest, builds the app and opens http://127.0.0.1:8787. Keep its window open while you use Aperture.
-
-### macOS / Linux / manual
+<details>
+<summary><b>🍎 macOS / 🐧 Linux</b></summary>
 
 ```bash
-python3 -m pip install -U "yt-dlp[default]" gallery-dl
+python3 -m pip install -U --pre "yt-dlp[default]" gallery-dl
 ```
 ```bash
 npm run setup
@@ -93,51 +156,83 @@ npm run setup
 npm run dev
 ```
 
-Open http://127.0.0.1:5173. For a single-process production build, use `npm start` (http://127.0.0.1:8787).
+Open http://127.0.0.1:5173, or run `npm start` for a single-process production build on http://127.0.0.1:8787.
 
-### Instagram and private posts (own PC only)
+</details>
 
-1. In a browser where you're logged in, export cookies with a "cookies.txt" extension (e.g. *Get cookies.txt LOCALLY*).
-2. Copy `.env.example` to `.env` and set `COOKIES_FILE=` to that file's full path.
-3. Restart.
-
-Treat that file like a password. Never put it on a public instance; public mode ignores it anyway.
-
-### Use it from your phone
-
-Set `HOST=0.0.0.0` and `APP_PASSCODE=…` in `.env`, then open `http://<your-PC's-IP>:8787` on your phone (same Wi-Fi). To reach your PC from anywhere, put it behind a free tunnel such as [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) or [Tailscale](https://tailscale.com).
-
-## Configuration
-
-All settings are environment variables. See [`.env.example`](.env.example) for the full list with explanations.
-
-## Security
-
-- **Host allowlist.** Extractors only run on listed platforms. Lookalike domains, local addresses, `file:` and credentialed URLs are rejected.
-- **No shell.** Extractors run via `execFile` with argument arrays, and the client can only pick a pre-validated quality id.
-- **No open proxy.** Downloads and thumbnails reference server-side ids, so the server never fetches a URL a visitor supplies directly.
-- **Abuse limits.** Helmet headers with CSP, rate limits, a per-visitor job cap, size and duration caps, process timeouts, and errors that don't expose internals.
-- **Optional passcode gate.** HttpOnly SameSite=Strict cookie, constant-time compare, login rate limit.
-
-## Development
+<details>
+<summary><b>🐳 Docker</b></summary>
 
 ```bash
-npm test
+docker build -t aperture .
 ```
+```bash
+docker run -p 8787:8787 -e PUBLIC_MODE=1 aperture
+```
+
+</details>
+
+### Configuration
+
+Everything is set with environment variables. The full, commented list is in [`.env.example`](.env.example). The most useful ones:
+
+| Variable | What it does |
+|---|---|
+| `PUBLIC_MODE=1` | Stricter limits for a shared instance (500 MB files, 90-minute videos, 3 jobs per visitor) |
+| `APIFY_TOKEN` | Enables the Instagram backup |
+| `ENABLED_PLATFORMS` | Which platforms to accept, e.g. `instagram,x,youtube,tiktok` |
+| `AUTO_UPDATE=1` | Updates the extractors on start and daily |
+| `APP_PASSCODE` | Locks a private instance behind a passcode |
+| `HOST=0.0.0.0` | Makes it reachable from your phone on the same Wi-Fi |
+
+## 🛡️ Security
+
+- **Allowlisted hosts only.** Lookalike domains, local addresses, `file:` and credentialed URLs are rejected.
+- **No shell, ever.** Extractors run via argument arrays, and visitors can only pick a pre-validated quality id.
+- **No open proxy.** Downloads use server-side ids, and backup media must come from Instagram's own CDN.
+- **Hardened server:** strict CSP and security headers, rate limits, per-visitor caps, size, duration and time limits.
+- **Secrets stay secret:** tokens live in environment variables, never in the repo. GitHub secret scanning and push protection are on.
+
+Found a vulnerability? Please report it privately. See [SECURITY.md](SECURITY.md).
+
+## 🧱 Tech stack
+
+**Frontend:** React 19, TypeScript, Vite, hand-written CSS design tokens, IBM Plex, service worker (PWA)
+**Backend:** Node.js, Express, Helmet, zod, Server-Sent Events for live progress
+**Extraction:** yt-dlp, gallery-dl, ffmpeg, optional Apify
+**Infra:** Docker, Render (free tier), Cloudflare DNS, GitHub Actions CI, Dependabot
+
+<details>
+<summary><b>Project layout</b></summary>
 
 ```
 server/src/index.js      routes, limits, passcode gate, static hosting
-server/src/platforms.js  host allowlist + link extraction (unit-tested)
-server/src/extract.js    yt-dlp / gallery-dl probing and error mapping
-server/src/jobs.js       download queue, retry, progress, cleanup
+server/src/platforms.js  host allowlist + link extraction
+server/src/extract.js    yt-dlp / gallery-dl probing, error mapping
+server/src/apify.js      Instagram backup (Apify)
+server/src/jobs.js       download queue, retries, progress, cleanup
 server/src/tools.js      finds the extractors (PATH or Python module)
 server/src/updater.js    daily extractor auto-update
-web/src/                 React app (Vite + TypeScript)
+web/src/                 React app
 web/public/sw.js         service worker (installable PWA)
 ```
 
-## Responsible use
+</details>
 
-Aperture is for saving content you have the right to keep: your own posts, content you have permission to save, or personal offline viewing where your local law allows it. Downloading may break a platform's terms of service, and re-uploading others' work can infringe copyright. If you run a public instance, you're its operator: provide a takedown contact (`CONTACT_URL`) and respond to requests.
+## 🤝 Contributing
 
-Logo blade geometry adapted from [Feather Icons](https://feathericons.com) (MIT).
+Bug reports and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). CI runs the tests, a type-checked build and a dependency audit on every pull request.
+
+## ⚖️ Responsible use
+
+Aperture is for saving content you have the right to keep: your own posts, content you have permission to save, or personal offline viewing where your local law allows it. Downloading may break a platform's terms of service, and re-uploading other people's work can infringe copyright. Rights holders can [file a takedown request](https://github.com/w1tneess/aperture/issues/new?template=takedown.yml).
+
+---
+
+<div align="center">
+
+Built by **[Advaita Chandra](https://advaitachandra.in)** · [MIT License](LICENSE)
+
+<sub>Logo blade geometry adapted from <a href="https://feathericons.com">Feather Icons</a> (MIT).</sub>
+
+</div>
