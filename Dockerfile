@@ -1,5 +1,5 @@
 # ---- build the web app
-FROM node:22-bookworm-slim AS web
+FROM node:25-bookworm-slim AS web
 WORKDIR /app/web
 COPY web/package*.json ./
 RUN npm ci
@@ -7,7 +7,7 @@ COPY web/ ./
 RUN npm run build
 
 # ---- runtime: Node + Python extractors + ffmpeg
-FROM node:22-bookworm-slim
+FROM node:25-bookworm-slim
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 python3-venv ffmpeg ca-certificates \
  && rm -rf /var/lib/apt/lists/*
