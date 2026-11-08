@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { config } from './config.js';
 import { tools } from './tools.js';
-import { cookiesFor } from './cookies.js';
+import { cookiesFor, hasInstagramLogin } from './cookies.js';
 import { apifyEnabled, probeApify } from './apify.js';
 import { WorkerUnavailable, workerProbe } from './worker.js';
 
@@ -169,6 +169,18 @@ function pickThumb(entry) {
   return thumbs.at(-1)?.url || null;
 }
 
+/**
+ * True when the platform itself says the video has no sound. yt-dlp's Instagram extractor sets
+ * acodec 'none' on the plain (non-DASH) MP4s only when Instagram returns has_audio: false; when the
+ * audio is merely hidden from logged-out visitors, those formats say null and a DASH audio track exists.
+ */
+function reportsNoAudio(entry) {
+  const formats = Array.isArray(entry.formats) ? entry.formats : [];
+  const plain = formats.filter((f) => !String(f.format_id || '').startsWith('dash'));
+  const anyAudio = formats.some((f) => f.acodec && f.acodec !== 'none');
+  return !anyAudio && plain.length > 0 && plain.every((f) => f.acodec === 'none');
+}
+
 export function normalizeYtdlp(info) {
   const isList = info._type === 'playlist';
   const entries = (isList ? info.entries || [] : [info]).filter(Boolean).slice(0, config.maxItemsPerPost);
@@ -185,6 +197,7 @@ export function normalizeYtdlp(info) {
       options: isImage
         ? [{ id: 'original', label: 'Original', ext: e.ext, res: null, sizeBytes: bytesOf(e) }]
         : buildVideoOptions(e),
+      knownSilent: !isImage && reportsNoAudio(e),
     };
   });
   const first = entries[0] || {};
@@ -313,7 +326,10 @@ async function probeUncached(target) {
   }
   // Logged-out Instagram often only exposes video-only streams, which would download without sound.
   // A video item with no audio option means no audio stream was found: prefer the backup's full MP4.
-  const silent = free.items.some((i) => i.kind === 'video' && i.source === 'ytdlp' && !i.options.some((o) => o.id === 'audio'));
+  // Videos Instagram reports as soundless are kept: the backup would only return the same silent file.
+  const silent = free.items.some(
+    (i) => i.kind === 'video' && i.source === 'ytdlp' && !i.knownSilent && !i.options.some((o) => o.id === 'audio'),
+  );
   if (!silent) return free;
   try {
     console.warn('[probe] instagram free path found video without audio; using Apify backup');
@@ -324,7 +340,26 @@ async function probeUncached(target) {
   }
 }
 
-async function probeFree({ url, images, platform }) {
+/**
+ * Whether gallery-dl is worth running for this link. It only adds photos and carousels, and:
+ * - Instagram reel / TV links are always a single video.
+ * - Without Instagram login cookies, gallery-dl is redirected to the login page, gets HTTP 429 and then
+ *   waits a full minute per retry. It can't succeed, and every probe used to wait 8-25 s on it.
+ */
+function galleryUseful({ url, images, platform }) {
+  if (!images) return false;
+  if (platform !== 'instagram') return true;
+  if (/^\/(?:[^/]+\/)?(?:reels?|tv)\//.test(new URL(url).pathname)) return false;
+  return hasInstagramLogin();
+}
+
+async function probeFree(target) {
+  const { url, platform } = target;
+  const images = galleryUseful(target);
+  const gallerySkipped = target.images && !images;
+  if (gallerySkipped) {
+    return probeYtdlp(url, platform);
+  }
   if (!images) {
     try {
       return await probeYtdlp(url, platform);
