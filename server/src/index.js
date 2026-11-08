@@ -243,10 +243,22 @@ app.use((err, _req, res, _next) => {
   fail(res, 500, 'INTERNAL', 'Something went wrong on the server.');
 });
 
+function startKeepAwake() {
+  if (!config.keepAwakeUrl) return;
+  const url = new URL('/api/info', config.keepAwakeUrl).toString();
+  const ping = () =>
+    fetch(url, { signal: AbortSignal.timeout(30_000), headers: { 'user-agent': 'aperture-keep-awake' } }).catch((err) =>
+      console.warn('[keep-awake] ping failed:', err.cause?.code || err.name),
+    );
+  setInterval(ping, 10 * 60_000).unref();
+  console.log(`✓ keep-awake: pinging ${url} every 10 min`);
+}
+
 await initStorage();
 await resolveTools();
 await initCookies();
 startAutoUpdate();
+startKeepAwake();
 app.listen(config.port, config.host, () => {
   console.log(`Aperture server on http://${config.host}:${config.port}`);
   const loopback = ['127.0.0.1', 'localhost', '::1'].includes(config.host);

@@ -57,7 +57,7 @@ Private accounts, stories and deleted posts can't be downloaded either way.
 2. In [Render](https://render.com): **New → Blueprint**, pick the repo. `render.yaml` sets up a free Docker web service with `PUBLIC_MODE=1` and `AUTO_UPDATE=1`.
 3. `CONTACT_URL` (takedown requests → this repo's Issues) and `REPO_URL` are already set in `render.yaml`. Change them there if you fork.
 
-Render's free tier ([docs](https://render.com/docs/free)) sleeps after 15 minutes without traffic and takes about a minute to wake, so the first visit after a quiet spell is slow. The disk is temporary, which suits Aperture: files are only kept for minutes anyway.
+Render's free tier ([docs](https://render.com/docs/free)) sleeps after 15 minutes without traffic. Aperture prevents that by visiting its own public URL every 10 minutes (Render sets `RENDER_EXTERNAL_URL` automatically; `KEEP_AWAKE=0` turns it off). Render gives 750 free instance hours a month and a month has at most 744, so **one** always-on service fits. A second free service in the same workspace would run both out of hours. The disk is temporary, which suits Aperture: files are only kept for minutes anyway.
 
 Public mode turns on stricter limits: 500 MB per file, 90-minute videos, 3 downloads at a time per visitor, rate-limited requests, and cookies are always ignored, so the server never acts as anyone's account. The `Dockerfile` also runs on any other Docker host.
 

@@ -84,6 +84,11 @@ export const config = {
   contactUrl: process.env.CONTACT_URL || '',
   repoUrl: process.env.REPO_URL || '',
 
+  // Render's free tier sleeps after 15 min without traffic. With this on, the server visits its own public
+  // URL every 10 min. One always-on free service fits in Render's 750 free hours/month (a month ≤ 744 h).
+  // RENDER_EXTERNAL_URL is set by Render automatically; set KEEP_AWAKE=0 to let it sleep.
+  keepAwakeUrl: flag(process.env.KEEP_AWAKE, true) ? process.env.KEEP_AWAKE_URL || process.env.RENDER_EXTERNAL_URL || '' : '',
+
   extraHosts: list(process.env.EXTRA_HOSTS),
   // Express reads a string as an IP list, so "1" must become the number 1 (= trust one proxy hop, e.g. Render).
   trustProxy: /^\d+$/.test(process.env.TRUST_PROXY || '')
