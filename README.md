@@ -41,7 +41,7 @@ Downloaders depend on the platforms, which actively change their sites to stop t
 
 1. Push this repo to GitHub.
 2. In [Render](https://render.com): **New → Blueprint**, pick the repo. `render.yaml` sets up a free Docker web service with `PUBLIC_MODE=1` and `AUTO_UPDATE=1`.
-3. Set `CONTACT_URL` (e.g. your repo's Issues page, for takedown requests) and `REPO_URL`.
+3. `CONTACT_URL` (takedown requests → this repo's Issues) and `REPO_URL` are already set in `render.yaml`. Change them there if you fork.
 
 Render's free tier ([docs](https://render.com/docs/free)) sleeps after 15 minutes without traffic and takes about a minute to wake, so the first visit after a quiet spell is slow. The disk is temporary, which suits Aperture: files are only kept for minutes anyway.
 
