@@ -259,6 +259,8 @@ export async function probeYtdlp(url, platform) {
     const info = JSON.parse(out);
     if (info.is_live) throw new ExtractError('LIVE', 'Live streams can’t be downloaded while they’re live.');
     const result = normalizeYtdlp(info, { photos });
+    // Post URL and id after redirects, so takedown blocks also catch short links (see isBlocked).
+    result.resolved = [info.webpage_url, info.id, info.display_id].filter(Boolean).join(' ');
     if (!result.items.length) throw new ExtractError('NO_VIDEO', 'No downloadable media found in that post.');
     return result;
   } catch (err) {

@@ -104,12 +104,14 @@ app.post('/api/probe', limiter(config.probeLimitPerMin), async (req, res) => {
 
   const target = resolveUrl(parsed.data.url, config.extraHosts, config.enabledPlatforms);
   if ('error' in target) return fail(res, 422, 'BAD_URL', target.error);
-  if (isBlocked(target.url, config.blockedLinks)) {
-    return fail(res, 451, 'BLOCKED', 'This post can’t be downloaded here because of a copyright or legal request.');
-  }
+  const blockedReply = () =>
+    fail(res, 451, 'BLOCKED', 'This post can’t be downloaded here because of a copyright or legal request.');
+  if (isBlocked(target.url, config.blockedLinks)) return blockedReply();
 
   try {
     const result = await probe(target);
+    // Re-check after redirects (short links): no probe id is saved, so no job can start for a blocked post.
+    if (isBlocked(result.resolved, config.blockedLinks)) return blockedReply();
     const saved = saveProbe({ ...result, url: target.url, platform: target.platform });
     res.json({
       probeId: saved.id,

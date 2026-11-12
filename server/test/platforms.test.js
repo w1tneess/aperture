@@ -85,4 +85,11 @@ test('blocks links named in a takedown list', () => {
   assert.equal(isBlocked('https://www.instagram.com/reel/C0abc123/?igsh=x', blocked), true);
   assert.equal(isBlocked('https://www.instagram.com/reel/Other999/', blocked), false);
   assert.equal(isBlocked('https://x.com/a/status/1', []), false);
+  // percent-encoded (even double-encoded) ids can't dodge the list; malformed escapes don't throw
+  assert.equal(isBlocked('https://www.instagram.com/reel/%43%30abc123/', blocked), true);
+  assert.equal(isBlocked('https://www.instagram.com/reel/%2543%2530abc123/', blocked), true);
+  assert.equal(isBlocked('https://www.instagram.com/reel/%E0%A4%A/', blocked), false);
+  // resolved URL/id from the extractor (after a short-link redirect)
+  assert.equal(isBlocked('https://www.instagram.com/reel/C0abc123/ C0abc123', ['c0abc123']), true);
+  assert.equal(isBlocked(undefined, blocked), false);
 });
