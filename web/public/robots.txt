@@ -1,0 +1,6 @@
+# Aperture (https://aperture.advaitachandra.in). Self-hosting? Edit or delete this file and sitemap.xml.
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://aperture.advaitachandra.in/sitemap.xml

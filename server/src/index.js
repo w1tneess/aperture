@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { config } from './config.js';
 import { ExtractError, probe } from './extract.js';
 import { activeJobsFor, createJob, events, getJob, getProbe, initStorage, markSaved, publicJob, saveProbe } from './jobs.js';
-import { PLATFORMS, resolveUrl } from './platforms.js';
+import { isBlocked, PLATFORMS, resolveUrl } from './platforms.js';
 import { resolveTools, tools } from './tools.js';
 import { cookiesFor, hasInstagramLogin, initCookies } from './cookies.js';
 import { apifyEnabled } from './apify.js';
@@ -104,9 +104,14 @@ app.post('/api/probe', limiter(config.probeLimitPerMin), async (req, res) => {
 
   const target = resolveUrl(parsed.data.url, config.extraHosts, config.enabledPlatforms);
   if ('error' in target) return fail(res, 422, 'BAD_URL', target.error);
+  const blockedReply = () =>
+    fail(res, 451, 'BLOCKED', 'This post can’t be downloaded here because of a copyright or legal request.');
+  if (isBlocked(target.url, config.blockedLinks)) return blockedReply();
 
   try {
     const result = await probe(target);
+    // Re-check after redirects (short links): no probe id is saved, so no job can start for a blocked post.
+    if (isBlocked(result.resolved, config.blockedLinks)) return blockedReply();
     const saved = saveProbe({ ...result, url: target.url, platform: target.platform });
     res.json({
       probeId: saved.id,
@@ -234,8 +239,11 @@ app.use('/api', (_req, res) => fail(res, 404, 'NOT_FOUND', 'Unknown endpoint.'))
 
 const webDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
 if (fs.existsSync(webDist)) {
-  app.use(express.static(webDist, { index: false, maxAge: '1h' }));
-  app.get('*', (_req, res) => res.sendFile(path.join(webDist, 'index.html')));
+  // extensions: '/terms' serves terms.html, so the legal pages are plain crawlable HTML.
+  app.use(express.static(webDist, { index: false, maxAge: '1h', extensions: ['html'] }));
+  // The app is a single page at '/'; anything else is a real 404 (no soft-404s for search engines).
+  app.get('/', (_req, res) => res.sendFile(path.join(webDist, 'index.html')));
+  app.get('*', (_req, res) => res.status(404).sendFile(path.join(webDist, '404.html')));
 }
 
 // eslint-disable-next-line no-unused-vars

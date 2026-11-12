@@ -1,0 +1,52 @@
+/* Shared style for the static pages (terms, privacy, copyright, 404). Same palette as the app. */
+:root {
+  --bg: #f3f0e8;
+  --surface: #fbf9f4;
+  --ink: #1b1a17;
+  --ink-2: #4c4840;
+  --ink-3: #6b665c;
+  --line: #dbd5c8;
+  --accent: #c43a1b;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121210;
+    --surface: #1a1a17;
+    --ink: #edeae2;
+    --ink-2: #bdb8ad;
+    --ink-3: #959083;
+    --line: #2e2d29;
+    --accent: #f2643f;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.65 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.wrap { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+header { border-bottom: 1px solid var(--line); }
+header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 14px; }
+.brand { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none;
+  font-family: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace; font-weight: 500; font-size: 18px; }
+.brand img { width: 22px; height: 22px; }
+.back { color: var(--ink-2); font-size: 14px; }
+main { padding-block: 40px 56px; }
+h1 { font-size: clamp(28px, 6vw, 40px); line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 8px; }
+h2 { font-size: 20px; margin: 36px 0 8px; }
+h3 { font-size: 16px; margin: 24px 0 4px; }
+p, li { color: var(--ink-2); }
+ul, ol { padding-left: 22px; }
+li + li { margin-top: 4px; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+strong { color: var(--ink); }
+.meta { color: var(--ink-3); font-size: 14px; margin: 0 0 24px; }
+.callout { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 20px 0; }
+.callout p { margin: 0; }
+footer { border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; padding-block: 20px; }
+footer a { color: var(--ink-2); }

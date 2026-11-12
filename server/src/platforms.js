@@ -58,3 +58,24 @@ export function resolveUrl(input, extraHosts = [], enabled = null) {
   }
   return { error: 'That site isn’t on the supported list.' };
 }
+
+// Takedowns: a link is blocked when it contains any BLOCKED_LINKS entry (best as a bare post id: matches /p/ and /reel/, x.com and twitter.com).
+// Percent-escapes are decoded first so "%43%30abc" can't dodge a block on "c0abc".
+// shortcut: short links (pin.it, fb.watch, t.co) are only caught via yt-dlp's resolved URL/id after the probe;
+// posts read by gallery-dl or the Apify backup are checked on the pasted link alone. Add canonical ids there if that gets abused.
+export function isBlocked(url, blocked = []) {
+  if (!blocked.length || !url) return false;
+  let text = url;
+  for (let i = 0; i < 5; i++) {
+    let next;
+    try {
+      next = decodeURIComponent(text);
+    } catch {
+      break; // malformed escape: match on what we have
+    }
+    if (next === text) break;
+    text = next;
+  }
+  text = text.toLowerCase();
+  return blocked.some((b) => text.includes(b));
+}

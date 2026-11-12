@@ -1,7 +1,7 @@
 {
   "name": "Aperture",
   "short_name": "Aperture",
-  "description": "Save reels, videos, photos and carousels from Instagram, X, Facebook, TikTok and YouTube.",
+  "description": "Save reels, videos, photos and carousels from Instagram, X, Facebook and Pinterest.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
