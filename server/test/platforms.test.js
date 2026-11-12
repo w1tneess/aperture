@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { extractUrl, resolveUrl } from '../src/platforms.js';
+import { extractUrl, isBlocked, resolveUrl } from '../src/platforms.js';
 
 test('detects each supported platform', () => {
   const cases = {
@@ -78,4 +78,11 @@ test('Instagram photos without video become direct image items; foreign hosts ar
   assert.equal(r.items[0].source, 'direct');
   assert.equal(r.items[0].mediaUrl, cdn('big'));
   assert.equal(r.items[1].kind, 'video');
+});
+
+test('blocks links named in a takedown list', () => {
+  const blocked = ['instagram.com/reel/c0abc123'];
+  assert.equal(isBlocked('https://www.instagram.com/reel/C0abc123/?igsh=x', blocked), true);
+  assert.equal(isBlocked('https://www.instagram.com/reel/Other999/', blocked), false);
+  assert.equal(isBlocked('https://x.com/a/status/1', []), false);
 });

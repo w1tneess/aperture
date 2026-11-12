@@ -3,16 +3,53 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Aperture: save reels, videos, photos and carousels from Instagram, X, Facebook, TikTok and YouTube." />
+    <title>Aperture: save Instagram, X, Facebook and Pinterest posts</title>
+    <meta name="description" content="Paste a link to save reels, videos, photos and full carousels from Instagram, X, Facebook and Pinterest. Free, open source, no ads, no accounts, no tracking." />
+    <link rel="canonical" href="https://aperture.advaitachandra.in/" />
     <meta name="theme-color" content="#F3F0E8" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#121210" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>Aperture</title>
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Aperture" />
+    <meta property="og:title" content="Aperture: paste a link, keep the post" />
+    <meta property="og:description" content="Save reels, videos, photos and carousels from Instagram, X, Facebook and Pinterest. No ads, no accounts, no tracking." />
+    <meta property="og:url" content="https://aperture.advaitachandra.in/" />
+    <meta property="og:image" content="https://aperture.advaitachandra.in/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The Aperture app: a link box with the headline “Paste a link. Keep the post.”" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Aperture: paste a link, keep the post" />
+    <meta name="twitter:description" content="Save reels, videos, photos and carousels from Instagram, X, Facebook and Pinterest. No ads, no accounts, no tracking." />
+    <meta name="twitter:image" content="https://aperture.advaitachandra.in/og-image.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Aperture",
+        "url": "https://aperture.advaitachandra.in/",
+        "description": "Save reels, videos, photos and carousels from Instagram, X, Facebook and Pinterest by pasting a link.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Any (web browser)",
+        "browserRequirements": "Requires JavaScript",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "license": "https://opensource.org/licenses/MIT",
+        "codeRepository": "https://github.com/w1tneess/aperture"
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <h1>Aperture: paste a link, keep the post</h1>
+      <p>Aperture saves reels, videos, photos and carousels from public Instagram, X, Facebook and Pinterest posts. It needs JavaScript to run.</p>
+      <p><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/copyright">Copyright &amp; takedown</a></p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

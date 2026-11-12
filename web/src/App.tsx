@@ -366,25 +366,22 @@ function Aperture() {
           Download only what you have the right to keep. Files are deleted from the server within{' '}
           {info?.fileLifetimeMinutes ?? 30} minutes. Nothing is stored after that.
         </p>
-        {(info?.contactUrl || info?.repoUrl) && (
-          <p className="footer-links">
-            {info?.repoUrl && (
-              <a href={info.repoUrl} target="_blank" rel="noopener noreferrer">
-                Source code
-              </a>
-            )}
-            {info?.repoUrl && (
-              <a href={`${info.repoUrl}/issues/new/choose`} target="_blank" rel="noopener noreferrer">
-                Report a problem
-              </a>
-            )}
-            {info?.contactUrl && (
-              <a href={info.contactUrl} target="_blank" rel="noopener noreferrer">
-                Copyright / takedown
-              </a>
-            )}
-          </p>
-        )}
+        <p>Not affiliated with Instagram, Facebook, Meta, X or Pinterest.</p>
+        <p className="footer-links">
+          <a href="/terms">Terms</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/copyright">Copyright / takedown</a>
+          {info?.repoUrl && (
+            <a href={info.repoUrl} target="_blank" rel="noopener noreferrer">
+              Source code
+            </a>
+          )}
+          {info?.repoUrl && (
+            <a href={`${info.repoUrl}/issues/new/choose`} target="_blank" rel="noopener noreferrer">
+              Report a problem
+            </a>
+          )}
+        </p>
       </footer>
 
       <div className="toast-region" role="status" aria-live="polite">

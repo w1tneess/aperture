@@ -58,3 +58,7 @@ export function resolveUrl(input, extraHosts = [], enabled = null) {
   }
   return { error: 'That site isn’t on the supported list.' };
 }
+
+// Takedowns: a link is blocked when it contains any BLOCKED_LINKS entry (best as a bare post id: matches /p/ and /reel/, x.com and twitter.com).
+// shortcut: short links (pin.it, fb.watch, t.co) are checked before redirects, so they slip past; resolve them first if that gets abused.
+export const isBlocked = (url, blocked = []) => blocked.some((b) => url.toLowerCase().includes(b));

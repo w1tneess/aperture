@@ -83,6 +83,8 @@ export const config = {
   // Shown in the footer for takedown requests on a public instance (e.g. your GitHub issues URL).
   contactUrl: process.env.CONTACT_URL || '',
   repoUrl: process.env.REPO_URL || '',
+  // Takedowns: comma-separated pieces of post links to refuse, e.g. abc123 (a post ID matches every host and path)
+  blockedLinks: list(process.env.BLOCKED_LINKS),
 
   // Render's free tier sleeps after 15 min without traffic. With this on, the server visits its own public
   // URL every 10 min. One always-on free service fits in Render's 750 free hours/month (a month ≤ 744 h).

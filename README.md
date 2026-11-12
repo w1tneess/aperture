@@ -225,6 +225,9 @@ Everything is set with environment variables. The full, commented list is in [`.
 | `AUTO_UPDATE=1` | Updates the extractors on start and daily |
 | `APP_PASSCODE` | Locks a private instance behind a passcode |
 | `HOST=0.0.0.0` | Makes it reachable from your phone on the same Wi-Fi |
+| `BLOCKED_LINKS` | Takedowns: refuse posts whose link contains any of these post IDs, e.g. `C0abc123` (Instagram) or `1234567890123456789` (X). On Render: Environment → edit → save (it redeploys) |
+
+> **Running your own public copy?** The pages in `web/public/` (`terms.html`, `privacy.html`, `copyright.html`, `robots.txt`, `sitemap.xml`) name the official instance, `aperture.advaitachandra.in`. Edit them for your own domain and contact details, or delete them, before you share your copy.
 
 ## 🔒 Security
 
@@ -303,9 +306,19 @@ Not on the public instance: it never uses anyone's account. On your own self-hos
 
 Bug reports and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). CI runs the tests, a type-checked build and a dependency audit on every pull request.
 
-## ⚖️ Responsible use
+## ⚖️ Responsible use and legal
 
-Aperture is for saving content you have the right to keep: your own posts, content you have permission to save, or personal offline viewing where your local law allows it. Downloading may break a platform's terms of service, and re-uploading other people's work can infringe copyright. Rights holders can [file a takedown request](https://github.com/w1tneess/aperture/issues/new?template=takedown.yml).
+Aperture is for saving content you have the right to keep: your own posts, content you have permission to save, or personal offline viewing where your local law allows it. Downloading may break a platform's terms of service, and re-uploading other people's work can infringe copyright.
+
+The public instance has its own policies:
+
+- **[Terms of Use](https://aperture.advaitachandra.in/terms):** what you may and may not do, no warranty, governing law (India)
+- **[Privacy Policy](https://aperture.advaitachandra.in/privacy):** what's handled (very little), for how long, and which services see it
+- **[Copyright & Takedown](https://aperture.advaitachandra.in/copyright):** how rights holders report infringement and what a notice needs to include
+
+Rights holders can [file a takedown request](https://github.com/w1tneess/aperture/issues/new?template=takedown.yml). Valid requests are handled by adding the post to `BLOCKED_LINKS`, so it can no longer be fetched through Aperture.
+
+Aperture is an independent project, **not affiliated with, endorsed by or sponsored by** Meta (Instagram, Facebook), X Corp or Pinterest. Their names are trademarks of their owners and are used only to say which links the app accepts.
 
 ---
 

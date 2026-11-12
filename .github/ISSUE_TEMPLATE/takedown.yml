@@ -1,18 +1,45 @@
 name: Copyright / takedown request
-description: Ask for content or behaviour to be removed from the public instance
+description: Ask for specific posts to be blocked on the public instance (aperture.advaitachandra.in)
 labels: [takedown]
 body:
   - type: markdown
     attributes:
       value: |
         Aperture does not host or store media: files exist on the server only for minutes while a visitor downloads them.
-        If you believe the public instance is being used to infringe your rights, describe it below and we'll respond promptly.
-  - type: textarea
-    id: details
+        Reporting the post to the platform where it was published removes it everywhere, including from Aperture.
+        Full policy: https://aperture.advaitachandra.in/copyright
+
+        **This issue is public.** Don't include a home address, phone number or other private details.
+        A name or organisation and a business contact are enough.
+  - type: input
+    id: work
     attributes:
-      label: Details
-      description: Your relationship to the content, the URL(s) concerned, and what you'd like done.
+      label: Your work
+      description: The original work, or a link to it.
+    validations: { required: true }
+  - type: textarea
+    id: urls
+    attributes:
+      label: Post link(s) to block on Aperture
+      description: One per line.
     validations: { required: true }
   - type: input
+    id: relationship
+    attributes:
+      label: Your relationship to the work
+      description: For example, owner, or authorised agent of the owner.
+    validations: { required: true }
+  - type: checkboxes
+    id: statements
+    attributes:
+      label: Statements
+      options:
+        - label: I believe in good faith that this use is not authorised by the owner, its agent or the law.
+          required: true
+        - label: The information in this request is accurate, and I am the owner or authorised to act for the owner.
+          required: true
+  - type: input
     id: contact
-    attributes: { label: Contact (optional), description: "How to reach you if we need more information." }
+    attributes:
+      label: Contact (optional)
+      description: A business contact if we need more information. Leave blank to be contacted on this issue.

@@ -1,7 +1,7 @@
 {
   "name": "aperture",
   "private": true,
-  "description": "Personal social media downloader (Instagram, X, Facebook, TikTok, YouTube, Threads, Reddit, Pinterest).",
+  "description": "Save reels, videos, photos and carousels from Instagram, X, Facebook and Pinterest by pasting a link. Self-hostable; more platforms can be enabled.",
   "scripts": {
     "setup": "npm install --prefix server && npm install --prefix web",
     "dev": "node scripts/dev.mjs",
