@@ -1,6 +1,8 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import cookieParser from 'cookie-parser';
 import express from 'express';
@@ -14,6 +16,7 @@ import { isBlocked, PLATFORMS, resolveUrl } from './platforms.js';
 import { resolveTools, tools } from './tools.js';
 import { cookiesFor, hasInstagramLogin, initCookies } from './cookies.js';
 import { apifyEnabled } from './apify.js';
+import { thumbnail } from './thumbs.js';
 import { startAutoUpdate } from './updater.js';
 import { startWorker } from './worker.js';
 
@@ -113,6 +116,9 @@ app.post('/api/probe', limiter(config.probeLimitPerMin), async (req, res) => {
     // Re-check after redirects (short links): no probe id is saved, so no job can start for a blocked post.
     if (isBlocked(result.resolved, config.blockedLinks)) return blockedReply();
     const saved = saveProbe({ ...result, url: target.url, platform: target.platform });
+    // Start the previews now so they're ready when the browser asks. Only the first few: carousel
+    // "thumbnails" can be full-size photos, and the rest are lazy-loaded further down the page.
+    for (const item of saved.items.slice(0, 4)) if (item.thumbnailUrl) void thumbnail(item.thumbnailUrl);
     res.json({
       probeId: saved.id,
       url: saved.url,
@@ -124,6 +130,7 @@ app.post('/api/probe', limiter(config.probeLimitPerMin), async (req, res) => {
         index,
         kind: item.kind,
         thumbnail: item.thumbnailUrl ? `/api/thumb/${saved.id}/${index}` : null,
+        preview: item.previewUrl ? `/api/preview/${saved.id}/${index}` : null,
         duration: item.duration,
         width: item.width,
         height: item.height,
@@ -147,20 +154,46 @@ app.get('/api/thumb/:probeId/:index', limiter(240), async (req, res) => {
   const p = getProbe(req.params.probeId);
   const item = p?.items[Number(req.params.index)];
   if (!item?.thumbnailUrl) return res.sendStatus(404);
+  const img = await thumbnail(item.thumbnailUrl);
+  if (!img) return res.sendStatus(502);
+  res.set({ 'content-type': img.type, 'cache-control': 'private, max-age=1800' }).send(img.body);
+});
+
+// Playable video previews, proxied for the same reason as thumbnails. Streamed rather than buffered, and
+// Range requests are passed through, because browsers (Safari especially) need them to play and seek.
+// Like thumbnails, the URL only ever comes from the extractor's output.
+app.get('/api/preview/:probeId/:index', limiter(240), async (req, res) => {
+  const item = getProbe(req.params.probeId)?.items[Number(req.params.index)];
+  if (!item?.previewUrl) return res.sendStatus(404);
+  // The timeout covers only the wait for headers; the video itself may stream for longer.
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 15_000);
+  let upstream;
   try {
-    const upstream = await fetch(item.thumbnailUrl, {
-      signal: AbortSignal.timeout(10_000),
-      headers: { 'user-agent': 'Mozilla/5.0 (Aperture personal downloader)' },
+    upstream = await fetch(item.previewUrl, {
+      signal: ac.signal,
+      headers: {
+        'user-agent': 'Mozilla/5.0 (Aperture personal downloader)',
+        ...(req.headers.range && { range: req.headers.range }),
+      },
     });
-    const type = upstream.headers.get('content-type') || '';
-    const length = Number(upstream.headers.get('content-length') || 0);
-    if (!upstream.ok || !type.startsWith('image/') || length > 15 * 1024 * 1024) return res.sendStatus(502);
-    const body = Buffer.from(await upstream.arrayBuffer());
-    if (body.length > 15 * 1024 * 1024) return res.sendStatus(502);
-    res.set({ 'content-type': type, 'cache-control': 'private, max-age=1800' }).send(body);
   } catch {
-    res.sendStatus(502);
+    return res.sendStatus(502);
+  } finally {
+    clearTimeout(timer);
   }
+  const type = upstream.headers.get('content-type') || '';
+  if (![200, 206].includes(upstream.status) || !type.startsWith('video/') || !upstream.body) {
+    upstream.body?.cancel().catch(() => {});
+    return res.sendStatus(upstream.status === 416 ? 416 : 502);
+  }
+  res.status(upstream.status).set({ 'content-type': type, 'cache-control': 'private, max-age=1800' });
+  for (const h of ['content-length', 'content-range', 'accept-ranges']) {
+    const v = upstream.headers.get(h);
+    if (v) res.set(h, v);
+  }
+  // Ends quietly when the viewer seeks or closes the page; that aborts this stream mid-way.
+  await pipeline(Readable.fromWeb(upstream.body), res).catch(() => {});
 });
 
 const JobInput = z.object({

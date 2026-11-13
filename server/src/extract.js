@@ -163,6 +163,29 @@ function buildVideoOptions(entry) {
   return options;
 }
 
+/**
+ * A single-file MP4 the browser can play as a preview: plain http(s), not HLS/DASH pieces. Formats with
+ * sound come first, then the smallest at 360p or more (quick to start), else the largest below that.
+ */
+export function previewOf(entry) {
+  const formats = Array.isArray(entry.formats) && entry.formats.length ? entry.formats : [entry];
+  const playable = formats.filter(
+    (f) =>
+      /^https:\/\//.test(f.url || '') &&
+      (!f.protocol || /^https?$/.test(f.protocol)) &&
+      f.ext === 'mp4' &&
+      f.vcodec !== 'none' &&
+      !String(f.format_id || '').startsWith('dash'),
+  );
+  const silent = (f) => (f.acodec && f.acodec !== 'none' ? 0 : f.acodec == null ? 1 : 2);
+  const size = (f) => {
+    const r = resOf(f) || 0;
+    return r >= 360 ? r : 10_000 - r;
+  };
+  playable.sort((a, b) => silent(a) - silent(b) || size(a) - size(b));
+  return playable[0]?.url || null;
+}
+
 function pickThumb(entry) {
   if (entry.thumbnail) return entry.thumbnail;
   const thumbs = Array.isArray(entry.thumbnails) ? entry.thumbnails.filter((t) => t?.url) : [];
@@ -231,6 +254,7 @@ export function normalizeYtdlp(info, { photos = false } = {}) {
       options: isImage
         ? [{ id: 'original', label: 'Original', ext: e.ext, res: null, sizeBytes: bytesOf(e) }]
         : buildVideoOptions(e),
+      previewUrl: isImage ? null : previewOf(e),
       knownSilent: !isImage && reportsNoAudio(e),
     };
   }).filter(Boolean);
@@ -283,6 +307,7 @@ export function normalizeGallerydl(messages) {
       selector: i + 1,
       kind: isImage ? 'image' : 'video',
       thumbnailUrl: isImage ? fileUrl : kw.display_url || kw.thumbnail || null,
+      previewUrl: !isImage && ext === 'mp4' && /^https:\/\//.test(fileUrl) ? fileUrl : null,
       duration: kw.duration ?? kw.video_duration ?? null,
       width: kw.width ?? null,
       height: kw.height ?? null,
@@ -301,7 +326,9 @@ export function normalizeGallerydl(messages) {
 }
 
 export async function probeGallerydl(url, platform) {
-  const args = [...gallerydlBaseArgs(platform), '--resolve-json', '--range', `1-${config.maxItemsPerPost}`, '--', url];
+  // No retries while someone waits: a blocked gallery-dl sleeps 30 s+ per retry (TikTok, Instagram 429)
+  // and can only end in the probe timeout. yt-dlp runs alongside, and the user can fetch again.
+  const args = [...gallerydlBaseArgs(platform), '--retries', '0', '--resolve-json', '--range', `1-${config.maxItemsPerPost}`, '--', url];
   let out;
   try {
     out = await probeRun('gallerydl', url, args, null, 25_000);
@@ -353,13 +380,41 @@ export async function probe(target) {
   }
 }
 
+// When Instagram blocks the free extractors (common on cloud hosts), every probe spent ~2 s on them before
+// reaching the backup. After a few misses in a row, go straight to the backup for a while, then try again.
+const SKIP_FREE_AFTER = 3;
+const SKIP_FREE_MS = 10 * 60_000;
+let freeMisses = 0;
+let skipFreeUntil = 0;
+
+export const skippingFree = () => Date.now() < skipFreeUntil;
+
+/** Record whether the free path could serve an Instagram post. A deleted post says nothing about blocking. */
+export function noteFree(ok, code) {
+  if (ok) {
+    freeMisses = 0;
+    skipFreeUntil = 0;
+  } else if (code !== 'NOT_FOUND' && ++freeMisses >= SKIP_FREE_AFTER) {
+    freeMisses = 0;
+    skipFreeUntil = Date.now() + SKIP_FREE_MS;
+    console.warn(`[probe] instagram free path keeps missing; using the Apify backup directly for ${SKIP_FREE_MS / 60_000} min`);
+  }
+}
+
 async function probeUncached(target) {
   if (target.platform !== 'instagram' || !apifyEnabled()) return probeFree(target);
+  if (skippingFree()) {
+    // If the backup itself fails (daily limit, outage), the free path is still worth a try.
+    return probeApify(target.url).catch((err) =>
+      probeFree(target).then((free) => (noteFree(true), free), () => Promise.reject(err)),
+    );
+  }
   // Instagram: free extractors first; if they can't read the post, ask the Apify backup.
   let free;
   try {
     free = await probeFree(target);
   } catch (err) {
+    noteFree(false, err.code);
     console.warn(`[probe] instagram free path failed (${err.code}); trying Apify backup`);
     return probeApify(target.url);
   }
@@ -369,6 +424,7 @@ async function probeUncached(target) {
   const silent = free.items.some(
     (i) => i.kind === 'video' && i.source === 'ytdlp' && !i.knownSilent && !i.options.some((o) => o.id === 'audio'),
   );
+  noteFree(!silent);
   if (!silent) return free;
   try {
     console.warn('[probe] instagram free path found video without audio; using Apify backup');

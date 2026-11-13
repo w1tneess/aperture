@@ -10,6 +10,8 @@ export type MediaItem = {
   index: number
   kind: 'video' | 'image' | 'audio'
   thumbnail: string | null
+  /** Playable video for checking the post before downloading. */
+  preview: string | null
   duration: number | null
   width: number | null
   height: number | null
