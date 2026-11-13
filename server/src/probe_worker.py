@@ -69,6 +69,8 @@ def setup_gallerydl(settings):
     """
     gdl_config.clear()
     gdl_config.set((), "file-range", settings.get("range") or "1-20")
+    # Same as the CLI's --retries 0 in extract.js: a blocked extractor otherwise sleeps 30 s+ per retry.
+    gdl_config.set(("extractor",), "retries", 0)
     if settings.get("cookies"):
         gdl_config.set(("extractor",), "cookies", settings["cookies"])
     if settings.get("instagramCookies"):

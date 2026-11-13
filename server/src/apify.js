@@ -78,6 +78,7 @@ function toItem(node, index) {
     mediaUrl,
     kind: isVideo ? 'video' : 'image',
     thumbnailUrl: safeMedia(node.displayUrl),
+    previewUrl: isVideo ? mediaUrl : null,
     duration: node.videoDuration ?? null,
     width: node.dimensionsWidth ?? null,
     height: node.dimensionsHeight ?? null,
@@ -114,8 +115,11 @@ export async function probeApify(url) {
   if (!apifyEnabled()) throw new ExtractError('EXTRACT_FAILED', 'Couldn’t read that post.', undefined, 'apify not configured');
   budget();
   const input = { directUrls: [url], resultsType: 'details', resultsLimit: 1, addParentData: false };
+  // 4096 MB = one full CPU core (1024 was a quarter), so the run starts and scrapes faster. This actor is
+  // paid per result with platform usage included, so memory costs nothing; the free plan's 16 GB cap still
+  // allows 4 lookups at once.
   const items = await api(
-    `/acts/${ACTOR}/run-sync-get-dataset-items?memory=1024&timeout=150&clean=0&limit=1`,
+    `/acts/${ACTOR}/run-sync-get-dataset-items?memory=4096&timeout=150&clean=0&limit=1`,
     { method: 'POST', body: JSON.stringify(input) },
     170_000,
   );

@@ -93,3 +93,23 @@ test('blocks links named in a takedown list', () => {
   assert.equal(isBlocked('https://www.instagram.com/reel/C0abc123/ C0abc123', ['c0abc123']), true);
   assert.equal(isBlocked(undefined, blocked), false);
 });
+
+test('video preview: a single-file MP4 with sound, smallest at 360p or more', async () => {
+  const { previewOf } = await import('../src/extract.js');
+  const f = (format_id, height, acodec, extra = {}) => ({
+    format_id, width: height, height, acodec, vcodec: 'h264', ext: 'mp4', protocol: 'https', url: `https://cdn.test/${format_id}.mp4`, ...extra,
+  });
+  const formats = [
+    f('dash-1080', 1080, 'none'),
+    f('hls-720', 720, 'aac', { protocol: 'm3u8_native' }),
+    f('240', 240, 'aac'),
+    f('720', 720, 'aac'),
+    f('480', 480, 'aac'),
+    f('1080-silent', 1080, 'none'),
+  ];
+  assert.equal(previewOf({ formats }), 'https://cdn.test/480.mp4');
+  // Instagram logged out: plain MP4s report unknown audio; still better than nothing.
+  assert.equal(previewOf({ formats: [f('dash-a', 720, 'none'), f('8', 640, null)] }), 'https://cdn.test/8.mp4');
+  assert.equal(previewOf({ formats: [f('hls', 720, 'aac', { protocol: 'm3u8_native' })] }), null);
+  assert.equal(previewOf({ formats: [f('x', 720, 'aac', { url: 'http://insecure.test/x.mp4' })] }), null);
+});
