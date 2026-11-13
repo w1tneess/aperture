@@ -93,6 +93,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh; /* mobile: ignore the collapsing browser toolbar */
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -124,6 +125,23 @@ textarea {
 
 button {
   cursor: pointer;
+  touch-action: manipulation; /* no double-tap-zoom delay */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Touch-only vs mouse/keyboard-only copy. */
+.on-touch {
+  display: none;
+}
+
+@media (hover: none) {
+  .on-touch {
+    display: revert;
+  }
+  .on-mouse,
+  .tip {
+    display: none;
+  }
 }
 
 :focus-visible {
@@ -166,12 +184,12 @@ button {
   width: 100%;
   max-width: 820px;
   margin-inline: auto;
-  padding-inline: var(--s4);
+  padding-inline: max(var(--s4), env(safe-area-inset-left), env(safe-area-inset-right));
 }
 
 @media (min-width: 640px) {
   .shell {
-    padding-inline: var(--s5);
+    padding-inline: max(var(--s5), env(safe-area-inset-left), env(safe-area-inset-right));
   }
 }
 
@@ -211,7 +229,14 @@ kbd {
   transition:
     background-color 120ms,
     border-color 120ms,
-    color 120ms;
+    color 120ms,
+    transform 80ms;
+}
+
+/* Press feedback: on touch there is no hover, so this is the only sign a tap landed. */
+.btn:active:not(:disabled),
+.btn-icon:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btn:disabled,
@@ -279,6 +304,7 @@ kbd {
 .topbar {
   border-bottom: 1px solid var(--line);
   background: var(--bg);
+  padding-top: env(safe-area-inset-top);
   position: sticky;
   top: 0;
   z-index: 5;
@@ -315,10 +341,6 @@ kbd {
 .tabs {
   display: flex;
   gap: var(--s1);
-  order: 3;
-  width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
 .tab {
@@ -335,6 +357,14 @@ kbd {
   font-weight: 500;
 }
 
+.tab-icon {
+  display: contents;
+}
+
+.tab-icon svg {
+  display: none;
+}
+
 .tab:hover {
   color: var(--ink);
 }
@@ -342,6 +372,76 @@ kbd {
 .tab[aria-current='page'] {
   color: var(--ink);
   background: var(--surface-2);
+}
+
+/* Phones: the sections become a bottom tab bar, within thumb reach. */
+@media (max-width: 599px) {
+  .tabs {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 6;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    padding: 0 max(var(--s2), env(safe-area-inset-left)) env(safe-area-inset-bottom);
+    border-top: 1px solid var(--line);
+    background: var(--bg); /* fallback where color-mix is unsupported (iOS < 16.2) */
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
+
+  /* The bar would otherwise ride up on the on-screen keyboard. */
+  body:has(:is(input[type='text'], input[type='url'], textarea):focus) .tabs {
+    display: none;
+  }
+
+  .tab {
+    position: relative;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    height: 60px;
+    padding: 0;
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+
+  .tab[aria-current='page'] {
+    background: none;
+    color: var(--ink);
+  }
+
+  .tab:focus-visible {
+    outline-offset: -4px;
+  }
+
+  .tab-icon {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 30px;
+    border-radius: 15px;
+    transition: background-color 160ms;
+  }
+
+  .tab-icon svg {
+    display: block;
+  }
+
+  .tab[aria-current='page'] .tab-icon {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  /* Badge sits on the icon's top-right corner. */
+  .tab > .count {
+    position: absolute;
+    top: 6px;
+    left: calc(50% + 12px);
+  }
 }
 
 .count {
@@ -365,8 +465,6 @@ kbd {
 
 @media (min-width: 600px) {
   .tabs {
-    order: 0;
-    width: auto;
     margin-left: var(--s4);
   }
 }
@@ -601,7 +699,7 @@ kbd {
   font-weight: 500;
 }
 
-.steps li > span:last-child {
+.steps li > strong ~ span {
   font-size: 14px;
   color: var(--ink-2);
 }
@@ -1417,6 +1515,121 @@ kbd {
   from {
     opacity: 0;
     transform: translateY(6px);
+  }
+}
+
+/* ============================================================ phones */
+/* Kept at the end so these win over the base rules above. */
+@media (max-width: 599px) {
+  /* Room for the bottom tab bar under the last content. */
+  .footer {
+    padding-bottom: calc(var(--s5) + 61px + env(safe-area-inset-bottom));
+  }
+
+  .toast-region {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+
+  .main {
+    padding-block: var(--s5) var(--s7);
+    gap: var(--s6);
+  }
+
+  .linkform {
+    margin-top: var(--s5);
+  }
+}
+
+@media (max-width: 639px) {
+  /* Full-width actions: easier to hit one-handed. */
+  .result-actions .btn {
+    flex: 1 1 0;
+  }
+
+  .batch-bar {
+    flex-wrap: wrap;
+  }
+
+  .batch-bar .btn {
+    flex: 1 1 100%;
+  }
+
+  /* Carousels: two up instead of one long column; the item number moves onto the image. */
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s2);
+  }
+
+  .tile {
+    position: relative;
+  }
+
+  .tile-num {
+    position: absolute;
+    top: var(--s2);
+    left: var(--s2);
+    padding: 1px 6px;
+    border-radius: var(--r-s);
+    background: var(--overlay);
+    color: #fff;
+  }
+
+  /* Download button floats on the image so the quality select gets the whole footer. */
+  .tile-foot .btn-icon {
+    position: absolute;
+    top: var(--s2);
+    right: var(--s2);
+    border-color: transparent;
+    border-radius: 50%;
+    background: var(--overlay);
+    color: #fff;
+  }
+
+  .gallery-head .result-actions {
+    flex: 1 1 100%;
+  }
+}
+
+/* Touch screens: every target at least 44px (WCAG 2.5.5 / Apple HIG). */
+@media (pointer: coarse) {
+  .btn,
+  .btn-sm {
+    height: 44px;
+  }
+
+  .btn-lg {
+    height: 48px;
+  }
+
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .tab {
+    min-height: 44px;
+  }
+
+  .tile-select {
+    height: 44px;
+    font-size: 16px; /* 16px stops iOS from zooming on focus */
+  }
+
+  .linkbar input {
+    height: 48px;
+  }
+
+  .segmented span {
+    padding: var(--s3) var(--s4);
+  }
+
+  .quality-row {
+    padding-block: var(--s3);
+  }
+
+  .history-actions,
+  .job-actions {
+    gap: var(--s2);
   }
 }
 

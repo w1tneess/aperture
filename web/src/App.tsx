@@ -3,7 +3,7 @@ import { Batch } from './components/Batch'
 import { Downloads } from './components/Downloads'
 import { Gate } from './components/Gate'
 import { History, type HistoryEntry } from './components/History'
-import { Icon } from './components/Icon'
+import { Icon, type IconName } from './components/Icon'
 import { Logo } from './components/Logo'
 import { LinkForm } from './components/LinkForm'
 import { Notice } from './components/Notice'
@@ -17,11 +17,11 @@ import { extractUrl } from './lib/platforms'
 import { DEFAULT_SETTINGS, pickOptionId, QUALITY_LABELS, toJobOption, type Settings } from './lib/settings'
 
 type Tab = 'get' | 'batch' | 'history' | 'settings'
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'get', label: 'Get' },
-  { id: 'batch', label: 'Batch' },
-  { id: 'history', label: 'History' },
-  { id: 'settings', label: 'Settings' },
+const TABS: { id: Tab; label: string; icon: IconName }[] = [
+  { id: 'get', label: 'Get', icon: 'download' },
+  { id: 'batch', label: 'Batch', icon: 'layers' },
+  { id: 'history', label: 'History', icon: 'clock' },
+  { id: 'settings', label: 'Settings', icon: 'sliders' },
 ]
 
 export default function App() {
@@ -253,6 +253,9 @@ function Aperture() {
                 aria-current={tab === t.id ? 'page' : undefined}
                 onClick={() => setTab(t.id)}
               >
+                <span className="tab-icon">
+                  <Icon name={t.icon} size={20} />
+                </span>
                 {t.label}
                 {t.id === 'get' && active > 0 && <span className="count">{active}</span>}
                 {t.id === 'history' && history.length > 0 && <span className="count">{history.length}</span>}
@@ -320,7 +323,8 @@ function Aperture() {
                     <li>
                       <span className="step-n mono" aria-hidden="true">02</span>
                       <strong>Paste it here</strong>
-                      <span>Press Ctrl+V anywhere, or share straight to Aperture on Android.</span>
+                      <span className="on-mouse">Press Ctrl+V anywhere, or share straight to Aperture on Android.</span>
+                      <span className="on-touch">Tap Paste above. On Android you can also share straight to Aperture.</span>
                     </li>
                     <li>
                       <span className="step-n mono" aria-hidden="true">03</span>
