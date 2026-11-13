@@ -52,7 +52,11 @@ export function LinkForm({ value, onChange, onSubmit, busy, autoFetch, inputRef,
       else inputRef.current?.focus()
     } catch {
       inputRef.current?.focus()
-      setNote('Clipboard access was blocked. Press Ctrl+V (⌘V on Mac) in the box instead.')
+      setNote(
+        window.matchMedia?.('(hover: none)').matches
+          ? 'Clipboard access was blocked. Long-press the box and choose Paste instead.'
+          : 'Clipboard access was blocked. Press Ctrl+V (⌘V on Mac) in the box instead.',
+      )
     }
   }
 
@@ -73,6 +77,7 @@ export function LinkForm({ value, onChange, onSubmit, busy, autoFetch, inputRef,
           ref={inputRef}
           type="text"
           inputMode="url"
+          enterKeyHint="go"
           autoComplete="off"
           autoCapitalize="off"
           spellCheck={false}
@@ -103,10 +108,11 @@ export function LinkForm({ value, onChange, onSubmit, busy, autoFetch, inputRef,
           </button>
         )}
         <div className="linkbar-actions">
-          <button type="button" className="btn btn-ghost" onClick={pasteFromClipboard}>
+          {/* Empty box: Paste is the next step, so it gets the primary style until there's a link to fetch. */}
+          <button type="button" className={`btn ${value.trim() ? 'btn-ghost' : 'btn-primary'}`} onClick={pasteFromClipboard}>
             <Icon name="paste" /> Paste
           </button>
-          <button type="submit" className="btn btn-primary" disabled={busy || !value.trim()}>
+          <button type="submit" className={`btn ${value.trim() ? 'btn-primary' : 'btn-ghost'}`} disabled={busy || !value.trim()}>
             {busy ? 'Reading…' : 'Fetch'} {!busy && <Icon name="arrow" />}
           </button>
         </div>

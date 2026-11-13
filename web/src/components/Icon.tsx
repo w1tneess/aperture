@@ -14,6 +14,9 @@ const PATHS = {
   music: 'M9 18V6l10-2v12M9 18a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Zm10-2a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z',
   trash: 'M5 7h14M10 7V4.5h4V7m-7 0 .8 12.5h8.4L17 7',
   open: 'M14 4h6v6m0-6-9 9M18 14v6H4V6h6',
+  layers: 'M12 3 3 8l9 5 9-5-9-5ZM3 13l9 5 9-5',
+  clock: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  sliders: 'M4 7h9m4 0h3M4 17h3m4 0h9M15 5v4M9 15v4',
 } as const
 
 export type IconName = keyof typeof PATHS
