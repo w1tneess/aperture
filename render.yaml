@@ -5,7 +5,7 @@ services:
     name: aperture
     runtime: docker
     plan: free
-    healthCheckPath: /api/info
+    healthCheckPath: /api/session # answers even with APP_PASSCODE set
     envVars:
       - key: PUBLIC_MODE
         value: "1"
