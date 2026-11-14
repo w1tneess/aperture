@@ -12,6 +12,7 @@ import { tools } from './tools.js';
  */
 
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'probe_worker.py');
+const POOL_THREADS = 8; // probe_worker.py's default thread pool size
 const PYTHONS = process.platform === 'win32' ? ['py', 'python', 'python3'] : ['python3', 'python'];
 
 let state = { proc: null, ready: null, pending: new Map(), nextId: 1 };
@@ -31,7 +32,7 @@ function pythonCandidates() {
 
 function startWith(python) {
   return new Promise((resolve) => {
-    const st = { proc: null, ready: null, pending: new Map(), nextId: 1 };
+    const st = { proc: null, ready: null, pending: new Map(), nextId: 1, stuck: 0 };
     let proc;
     try {
       proc = spawn(python, ['-X', 'utf8', SCRIPT, JSON.stringify(settings)], { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
@@ -83,7 +84,10 @@ function startWith(python) {
           continue;
         }
         const p = st.pending.get(msg.id);
-        if (!p) continue; // timed out earlier
+        if (!p) {
+          st.stuck--; // a timed-out probe finally finished, freeing its thread
+          continue;
+        }
         st.pending.delete(msg.id);
         clearTimeout(p.timer);
         if (msg.ok) p.resolve(msg.out);
@@ -175,6 +179,12 @@ export async function workerProbe(tool, url, args, timeout) {
     const timer = setTimeout(() => {
       st.pending.delete(id);
       reject(Object.assign(new Error('probe timed out'), { killed: true, stderr: '' }));
+      // A timed-out probe keeps its worker thread busy. Once every thread is stuck, new probes would only
+      // queue up and time out too: restart the worker (repeated crashes fall back to the CLIs).
+      if (++st.stuck >= POOL_THREADS) {
+        console.warn('[worker] every probe thread is stuck; restarting the probe worker');
+        st.proc.kill();
+      }
     }, timeout);
     st.pending.set(id, { resolve, reject, timer });
     st.proc.stdin.write(`${JSON.stringify({ id, tool, url, args })}\n`);

@@ -119,24 +119,22 @@ function Aperture() {
       const option = item.options.find((o) => o.id === optionId)
       const optionLabel =
         optionId === 'audio' ? settings.audioFormat.toUpperCase() : (option?.label.replace(/^Best · /, '') ?? optionId)
-      try {
-        await start(p.probeId, item.index, toJobOption(optionId, settings), {
-          title: p.title,
-          platform: p.platform,
-          thumbnail: item.thumbnail,
-          optionLabel,
-          url: p.url,
-        })
-      } catch (err) {
-        setToast(err instanceof ApiError ? err.message : 'Couldn’t start the download.')
-      }
+      // Failures show up in the Downloads list with a Retry button.
+      return start(p.probeId, item.index, toJobOption(optionId, settings), {
+        title: p.title,
+        platform: p.platform,
+        thumbnail: item.thumbnail,
+        optionLabel,
+        url: p.url,
+      })
     },
     [settings, start],
   )
 
   const downloadAll = useCallback(
     async (p: Probe) => {
-      await Promise.all(p.items.map((item) => download(p, item, pickOptionId(item, settings))))
+      // Not awaited: every item is in the Downloads list at once, and some may wait for a free slot.
+      for (const item of p.items) void download(p, item, pickOptionId(item, settings))
       return p.items.length
     },
     [download, settings],

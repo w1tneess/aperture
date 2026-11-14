@@ -337,7 +337,8 @@ async function sweep() {
   for (const [id, probe] of probes) if (probe.createdAt < cutoff) probes.delete(id);
   for (const [id, job] of jobs) {
     const savedExpired = job.savedAt && job.savedAt < Date.now() - config.afterSaveTtlMs;
-    if ((job.createdAt < cutoff || savedExpired) && job.status !== 'running' && job.status !== 'processing') {
+    // Queued jobs are skipped too: they're still in `queue`, and would otherwise run later into a folder nothing cleans up.
+    if ((job.createdAt < cutoff || savedExpired) && !['queued', 'running', 'processing'].includes(job.status)) {
       jobs.delete(id);
       await fs.rm(job.dir, { recursive: true, force: true }).catch(() => {});
     }
